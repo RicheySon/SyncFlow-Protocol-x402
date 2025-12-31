@@ -1,0 +1,77 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+    LayoutDashboard,
+    Bot,
+    Workflow,
+    Receipt,
+    Wrench,
+    BookOpen,
+    User,
+    LogOut,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+
+const navigation = [
+    { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Agents', href: '/dashboard/agents', icon: Bot },
+    { name: 'Workflows', href: '/dashboard/workflows', icon: Workflow },
+    { name: 'Transactions', href: '/dashboard/transactions', icon: Receipt },
+    { name: 'Dev Tools', href: '/dashboard/dev-tools', icon: Wrench },
+    { name: 'Documentation', href: '/docs', icon: BookOpen },
+];
+
+export function DashboardSidebar() {
+    const pathname = usePathname();
+
+    return (
+        <div className="flex h-full w-64 flex-col border-r border-border bg-muted/30">
+            {/* Logo */}
+            <div className="flex h-16 items-center gap-2 border-b border-border px-6">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary" />
+                <span className="text-xl font-bold">SyncFlow</span>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 space-y-1 p-4">
+                {navigation.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link
+                            key={item.name}
+                            href={item.href}
+                            className={cn(
+                                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                isActive
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            )}
+                        >
+                            <item.icon className="h-5 w-5" />
+                            {item.name}
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            {/* User Profile */}
+            <div className="border-t border-border p-4">
+                <div className="flex items-center gap-3 rounded-lg bg-accent px-3 py-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <User className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-medium">Admin User</p>
+                        <p className="truncate text-xs text-muted-foreground">admin@syncflow.dev</p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <LogOut className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}

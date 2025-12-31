@@ -1,0 +1,48 @@
+export const CRONOS_CONFIG = {
+    chainId: 25,
+    chainName: 'Cronos Mainnet',
+    rpcUrl: process.env.NEXT_PUBLIC_CRONOS_RPC_URL || 'https://evm.cronos.org',
+    explorerUrl: process.env.NEXT_PUBLIC_CRONOS_EXPLORER || 'https://cronos.org/explorer',
+    nativeCurrency: {
+        name: 'Cronos',
+        symbol: 'CRO',
+        decimals: 18,
+    },
+};
+
+export const CONTRACTS = {
+    agentWallet: process.env.NEXT_PUBLIC_CONTRACT_AGENT_WALLET || '',
+    paymentRouter: process.env.NEXT_PUBLIC_CONTRACT_PAYMENT_ROUTER || '',
+    conditionalExecutor: process.env.NEXT_PUBLIC_CONTRACT_CONDITIONAL_EXECUTOR || '',
+};
+
+export const API_CONFIG = {
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    timeout: 30000,
+};
+
+export const AGENT_TYPES = {
+    DAO_MANAGER: 'DAO Manager',
+    TRADING_BOT: 'Trading Bot',
+    HEDGE_MANAGER: 'Hedge Manager',
+} as const;
+
+export const TRANSACTION_TYPES = {
+    X402_PAYMENT: 'x402 Payment',
+    SWAP: 'Swap',
+    DEPOSIT: 'Deposit',
+    WITHDRAWAL: 'Withdrawal',
+    BATCH_TRANSFER: 'Batch Transfer',
+} as const;
+
+export const WORKFLOW_STATUS = {
+    ACTIVE: 'active',
+    DRAFT: 'draft',
+    FAILED: 'failed',
+} as const;
+
+export const AGENT_STATUS = {
+    ACTIVE: 'active',
+    PAUSED: 'paused',
+    ERROR: 'error',
+} as const;

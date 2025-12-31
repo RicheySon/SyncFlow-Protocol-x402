@@ -1,0 +1,25 @@
+2025-12-31T00:19:26.112480Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon"), AnchoredSystemPathBuf(".turbo\\cookies"), AnchoredSystemPathBuf(".turbo\\cookies\\.turbo-cookie"), AnchoredSystemPathBuf(".turbo")}
+2025-12-31T00:19:26.115679Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-12-31T00:19:26.294343Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\cookies"), AnchoredSystemPathBuf(".turbo")}
+2025-12-31T00:19:26.294502Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-12-31T00:19:26.374136Z  WARN daemon_server: turborepo_lib::commands::daemon: daemon already running
+2025-12-31T00:19:26.425059Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\cookies"), AnchoredSystemPathBuf(".turbo\\cookies\\.turbo-cookie")}
+2025-12-31T00:19:26.425097Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-12-31T00:19:26.634853Z  WARN daemon_server: turborepo_lib::commands::daemon: daemon already running
+2025-12-31T00:19:27.096689Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\cookies")}
+2025-12-31T00:19:27.096754Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-12-31T00:19:27.408038Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\42f750ccbb7718b6-turbo.log.2025-12-31")}
+2025-12-31T00:19:27.408078Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-12-31T00:19:27.706486Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\42f750ccbb7718b6-turbo.log.2025-12-31")}
+2025-12-31T00:19:27.706524Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-12-31T00:19:45.395929Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("packages\\frontend\\.next")}
+2025-12-31T00:19:45.396124Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@syncflow/frontend"), path: AnchoredSystemPathBuf("packages\\frontend") }}))
+2025-12-31T00:19:45.617271Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("packages\\frontend\\.next")}
+2025-12-31T00:19:45.617349Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@syncflow/frontend"), path: AnchoredSystemPathBuf("packages\\frontend") }}))
+2025-12-31T00:19:45.617434Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-12-31T00:19:54.902997Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("packages\\frontend\\.next")}
+2025-12-31T00:19:54.903031Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@syncflow/frontend"), path: AnchoredSystemPathBuf("packages\\frontend") }}))
+2025-12-31T00:19:55.398348Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-12-31T00:19:55.398692Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("packages\\frontend\\.next")}
+2025-12-31T00:19:55.398718Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@syncflow/frontend"), path: AnchoredSystemPathBuf("packages\\frontend") }}))
+2025-12-31T00:19:55.398791Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun

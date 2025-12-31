@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  agents    Agent[]
+  apiKeys   ApiKey[]
+}
+
+model Agent {
+  id              String        @id @default(uuid())
+  name            String
+  type            String        // DAO_MANAGER, TRADING_BOT, HEDGE_MANAGER
+  status          String        @default("active") // active, paused, error
+  smartWallet     String        @unique
+  riskParams      Json
+  instructions    String        @db.Text
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  workflows       Workflow[]
+  transactions    Transaction[]
+}
+
+model Workflow {
+  id          String              @id @default(uuid())
+  name        String
+  description String?
+  pipeline    Json                // workflow steps definition
+  status      String              @default("draft") // active, draft, failed
+  frequency   String              @default("one-time") // one-time, recurring
+  agentId     String
+  agent       Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  executions  WorkflowExecution[]
+}
+
+model WorkflowExecution {
+  id         String   @id @default(uuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status     String   // success, pending, failed
+  gasUsed    String?
+  profitLoss String?
+  txHash     String?
+  error      String?  @db.Text
+  executedAt DateTime @default(now())
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  type      String   // x402_payment, swap, deposit, withdrawal
+  amount    String
+  token     String
+  status    String   // success, pending, failed
+  txHash    String   @unique
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model McpServer {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  type        String   // portfolio-state, transaction-monitor, protocol-indexer, market-data
+  endpoint    String
+  status      String   @default("connected") // connected, disconnected
+  tools       Json     // available tools
+  lastSync    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  name      String
+  key       String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastUsed  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
