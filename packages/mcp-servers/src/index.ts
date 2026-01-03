@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { registerPortfolioTools } from "./servers/PortfolioServer";
+import { registerPortfolioTools } from "./servers/PortfolioServer.js";
+import { registerTransactionTools } from "./servers/TransactionMonitorServer.js";
+import { registerIndexerTools } from "./servers/ProtocolIndexerServer.js";
+import { registerMarketTools } from "./servers/MarketDataBridgeServer.js";
 
 // Create an MCP server
 const server = new McpServer({
@@ -10,6 +13,9 @@ const server = new McpServer({
 
 // Register tools and resources
 registerPortfolioTools(server);
+registerTransactionTools(server);
+registerIndexerTools(server);
+registerMarketTools(server);
 
 // Start the server using stdio transport
 async function main() {
