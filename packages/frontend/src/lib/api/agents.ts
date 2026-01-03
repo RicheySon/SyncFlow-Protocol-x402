@@ -4,7 +4,7 @@ export interface Agent {
     id: string;
     name: string;
     description?: string;
-    type: 'invest' | 'trade' | 'research';
+    type: 'invest' | 'trade' | 'research' | 'protocol' | 'dao' | 'fund' | 'individual' | string;
     status: 'active' | 'paused' | 'error';
     config: string;
     userId: string;
@@ -16,15 +16,15 @@ export interface Agent {
 export interface CreateAgentData {
     name: string;
     description?: string;
-    type: 'invest' | 'trade' | 'research';
+    type: 'invest' | 'trade' | 'research' | 'protocol' | 'dao' | 'fund' | 'individual' | string;
     config: string;
 }
 
 export interface UpdateAgentData {
     name?: string;
     description?: string;
-    type?: 'invest' | 'trade' | 'research';
-    status?: 'active' | 'paused' | ' error';
+    type?: 'invest' | 'trade' | 'research' | 'protocol' | 'dao' | 'fund' | 'individual' | string;
+    status?: 'active' | 'paused' | 'error';
     config?: string;
 }
 

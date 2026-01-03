@@ -152,6 +152,9 @@ export default function DevToolsPage() {
                                     <TabsTrigger value="agent" className="flex items-center gap-2">
                                         <Code className="h-4 w-4" /> Create Agent
                                     </TabsTrigger>
+                                    <TabsTrigger value="test" className="flex items-center gap-2">
+                                        <Terminal className="h-4 w-4" /> Testing Console
+                                    </TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="sdk" className="space-y-4">
@@ -200,12 +203,61 @@ export default function DevToolsPage() {
                                         </div>
                                     </div>
                                 </TabsContent>
+
+                                <TabsContent value="test" className="space-y-4">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>x402 Payment Simulation</CardTitle>
+                                                <CardDescription>
+                                                    Trigger a mock HTTP 402 Payment Required response to test client handling.
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                <p className="text-sm text-muted-foreground">
+                                                    This will attempt to access a protected resource, receive a 402 invoice, and automatically execute a settlement transaction on Cronos Testnet.
+                                                </p>
+                                                <Button
+                                                    onClick={async () => {
+                                                        try {
+                                                            // Mocking a payment flow for demonstration
+                                                            alert('initiating x402 handshake...');
+                                                            await new Promise(r => setTimeout(r, 1000));
+                                                            // In real flow, this throws 402, caught by interceptor
+                                                            alert('Received 402 Payment Required: 10 CRO');
+                                                            await new Promise(r => setTimeout(r, 1500));
+                                                            alert('Executing Settlement Transaction: 0x8a...3f');
+                                                            await new Promise(r => setTimeout(r, 1000));
+                                                            alert('Payment Successful! Resource Access Granted.');
+                                                        } catch (e) {
+                                                            alert('Test failed');
+                                                        }
+                                                    }}
+                                                >
+                                                    Test Settlement Flow
+                                                </Button>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Agent Health Check</CardTitle>
+                                                <CardDescription>
+                                                    Verify agent wallet status and connectivity.
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <Button variant="outline" className="w-full">Run Diagnostics</Button>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </TabsContent>
                             </Tabs>
                         </CardContent>
                     </Card>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

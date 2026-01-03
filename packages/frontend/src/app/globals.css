@@ -4,27 +4,42 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%; /* #0F172A */
-    --foreground: 210 20% 98%; /* #F1F5F9 */
+    --background: 222 47% 11%;
+    /* #0F172A */
+    --foreground: 210 20% 98%;
+    /* #F1F5F9 */
 
-    --primary: 160 84% 39%; /* #10B981 */
+    --primary: 160 84% 39%;
+    /* #10B981 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 189 94% 43%; /* #06B6D4 */
+    --secondary: 189 94% 43%;
+    /* #06B6D4 */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 28% 17%; /* #1E293B */
-    --muted-foreground: 215 20% 65%; /* #94A3B8 */
+    --muted: 215 28% 17%;
+    /* #1E293B */
+    --muted-foreground: 215 20% 65%;
+    /* #94A3B8 */
 
-    --accent: 215 20% 28%; /* #334155 */
+    --accent: 215 20% 28%;
+    /* #334155 */
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84% 60%; /* #EF4444 */
+    --destructive: 0 84% 60%;
+    /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 28%; /* #334155 */
+    --border: 215 20% 28%;
+    /* #334155 */
     --input: 215 20% 28%;
     --ring: 189 94% 43%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 20% 98%;
 
     --radius: 0.75rem;
   }
@@ -34,6 +49,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;

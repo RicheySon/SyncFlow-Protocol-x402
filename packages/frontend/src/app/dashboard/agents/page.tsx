@@ -55,8 +55,9 @@ export default function AgentsPage() {
     // Form state
     const [formData, setFormData] = useState({
         name: '',
-        type: 'invest' as 'invest' | 'trade' | 'research',
+        type: 'protocol',
         description: '',
+        baseToken: 'eUSDC',
     });
 
     // Fetch agents on mount
@@ -84,10 +85,10 @@ export default function AgentsPage() {
                 name: formData.name,
                 type: formData.type,
                 description: formData.description,
-                config: JSON.stringify({ risk: 'low' }), // Default config
+                config: JSON.stringify({ risk: 'low', baseToken: formData.baseToken }), // Default config with Base Token
             });
             setIsCreateOpen(false);
-            setFormData({ name: '', type: 'invest', description: '' });
+            setFormData({ name: '', type: 'protocol', description: '', baseToken: 'eUSDC' });
             fetchAgents(); // Refresh list
         } catch (err: any) {
             alert(`Failed to create agent: ${err.message}`);
@@ -153,20 +154,39 @@ export default function AgentsPage() {
                                     />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="type">Agent Type</Label>
+                                    <Label htmlFor="baseToken">Base Token</Label>
+                                    <Select
+                                        value={formData.baseToken}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, baseToken: value })
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select base token" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[100]">
+                                            <SelectItem value="eUSDC">eUSDC</SelectItem>
+                                            <SelectItem value="eAVAX">eAVAX</SelectItem>
+                                            <SelectItem value="eUSDT">eUSDT</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="type">Entity Type</Label>
                                     <Select
                                         value={formData.type}
-                                        onValueChange={(value: 'invest' | 'trade' | 'research') =>
+                                        onValueChange={(value: any) =>
                                             setFormData({ ...formData, type: value })
                                         }
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select agent type" />
+                                            <SelectValue placeholder="Select entity type" />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="invest">Investment Manager</SelectItem>
-                                            <SelectItem value="trade">Trading Bot</SelectItem>
-                                            <SelectItem value="research">Research Agent</SelectItem>
+                                        <SelectContent className="z-[100]">
+                                            <SelectItem value="protocol">Protocol</SelectItem>
+                                            <SelectItem value="dao">DAO</SelectItem>
+                                            <SelectItem value="fund">Investment Fund</SelectItem>
+                                            <SelectItem value="individual">Individual</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
