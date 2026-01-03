@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     LayoutDashboard,
     Bot,
@@ -15,6 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
+import { UserManager } from '@/lib/api';
+import { authApi } from '@/lib/api/auth';
 
 const navigation = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -25,8 +28,27 @@ const navigation = [
     { name: 'Documentation', href: '/docs', icon: BookOpen },
 ];
 
+interface UserData {
+    name?: string;
+    email: string;
+}
+
 export function DashboardSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const [user, setUser] = useState<UserData | null>(null);
+
+    useEffect(() => {
+        const userData = UserManager.getUser();
+        if (userData) {
+            setUser(userData);
+        }
+    }, []);
+
+    const handleLogout = () => {
+        authApi.logout();
+        router.push('/login');
+    };
 
     return (
         <div className="flex h-full w-64 flex-col border-r border-border bg-muted/30">
@@ -69,10 +91,10 @@ export function DashboardSidebar() {
                         <User className="h-4 w-4" />
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-medium">Admin User</p>
-                        <p className="truncate text-xs text-muted-foreground">admin@syncflow.dev</p>
+                        <p className="text-sm font-medium">{user?.name || 'User'}</p>
+                        <p className="truncate text-xs text-muted-foreground">{user?.email || 'Loading...'}</p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
                         <LogOut className="h-4 w-4" />
                     </Button>
                 </div>

@@ -19,6 +19,24 @@ export const TokenManager = {
     },
 };
 
+export const UserManager = {
+    getUser: () => {
+        if (typeof window === 'undefined') return null;
+        const userStr = localStorage.getItem('user');
+        return userStr ? JSON.parse(userStr) : null;
+    },
+
+    setUser: (user: any) => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem('user', JSON.stringify(user));
+    },
+
+    clearUser: () => {
+        if (typeof window === 'undefined') return;
+        localStorage.removeItem('user');
+    },
+};
+
 // Base fetch wrapper with auth
 export async function apiClient<T>(
     endpoint: string,

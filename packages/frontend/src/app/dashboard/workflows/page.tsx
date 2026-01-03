@@ -71,19 +71,18 @@ export default function WorkflowsPage() {
         }
     };
 
-    const handleCreateWorkflow = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleCreate = async () => {
+        if (!formData.name) {
+            alert('Please enter a workflow name');
+            return;
+        }
         try {
-            await workflowsApi.create({
-                name: formData.name,
-                description: formData.description,
-                steps: formData.steps
-            });
-            setIsCreateOpen(false);
+            await workflowsApi.create(formData);
             setFormData({ name: '', description: '', steps: '[]' });
+            setIsCreateOpen(false);
             fetchWorkflows();
         } catch (err: any) {
-            alert(`Failed to create: ${err.message}`);
+            alert(`Failed to create workflow: ${err.message}`);
         }
     };
 
@@ -97,21 +96,76 @@ export default function WorkflowsPage() {
         }
     };
 
-    export default function WorkflowsPage() {
-        return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Workflows</h1>
-                        <p className="text-muted-foreground">
-                            Design and monitor multi-leg autonomous payment flows.
-                        </p>
-                    </div>
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" /> Create Workflow
-                    </Button>
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Workflows</h1>
+                    <p className="text-muted-foreground">
+                        Manage and monitor your automated workflows
+                    </p>
                 </div>
+                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Workflow
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Create Workflow</DialogTitle>
+                            <DialogDescription>
+                                Create a new automated workflow
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div>
+                                <Label htmlFor="name">Workflow Name</Label>
+                                <Input
+                                    id="name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="My Trading Strategy"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="description">Description (Optional)</Label>
+                                <Input
+                                    id="description"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    placeholder="Automated DCA strategy"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleCreate}>Create</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
 
+            {loading ? (
+                <div className="text-center py-12">Loading workflows...</div>
+            ) : error ? (
+                <div className="text-center py-12 text-destructive">{error}</div>
+            ) : workflows.length === 0 ? (
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <WorkflowIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                        <h3 className="mt-4 text-lg font-semibold">No workflows yet</h3>
+                        <p className="text-muted-foreground">Get started by creating your first workflow</p>
+                        <Button className="mt-4" onClick={() => setIsCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Workflow
+                        </Button>
+                    </CardContent>
+                </Card>
+            ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {workflows.map((workflow) => (
                         <Card key={workflow.id} className="flex flex-col">
@@ -119,104 +173,63 @@ export default function WorkflowsPage() {
                                 <div className="flex items-start justify-between">
                                     <div className="space-y-1">
                                         <CardTitle className="text-base">{workflow.name}</CardTitle>
-                                        <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
-                                            {workflow.description}
-                                        </p>
+                                        {workflow.description && (
+                                            <p className="text-sm text-muted-foreground">{workflow.description}</p>
+                                        )}
                                     </div>
-                                    <Badge variant={
-                                        workflow.status === 'active' ? 'default' :
-                                            workflow.status === 'completed' ? 'secondary' :
-                                                'outline'
-                                    } className="capitalize">
-                                        {workflow.status}
-                                    </Badge>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem>
+                                                <Play className="mr-2 h-4 w-4" />
+                                                Execute Now
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="text-destructive"
+                                                onClick={() => handleDelete(workflow.id)}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </CardHeader>
-                            <CardContent className="flex-1 space-y-4">
-                                {/* Visual Flow Mini */}
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-3 rounded-lg overflow-hidden">
-                                    <div className="flex items-center gap-1">
-                                        <div className="p-1 bg-background rounded border">
-                                            <DollarSign className="h-3 w-3" />
-                                        </div>
-                                        <span>Trigger</span>
+                            <CardContent className="flex-1">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground">Status</span>
+                                        <Badge variant={workflow.status === 'active' ? 'default' : 'secondary'}>
+                                            {workflow.status}
+                                        </Badge>
                                     </div>
-                                    <ArrowRight className="h-3 w-3" />
-                                    <div className="flex items-center gap-1">
-                                        <div className="p-1 bg-background rounded border">
-                                            <Zap className="h-3 w-3" />
-                                        </div>
-                                        <span>Action</span>
-                                    </div>
-                                    {workflow.steps && JSON.parse(workflow.steps).length > 2 && (
-                                        <>
-                                            <ArrowRight className="h-3 w-3" />
-                                            <Badge variant="outline" className="h-5 px-1 bg-background">+{JSON.parse(workflow.steps).length - 2}</Badge>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div>
-                                        <p className="text-muted-foreground text-xs">Created</p>
-                                        <p className="font-medium truncate">
-                                            {new Date(workflow.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-muted-foreground text-xs">Status</p>
-                                        <p className="font-medium capitalize">{workflow.status}</p>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground">Steps</span>
+                                        <span className="font-medium">
+                                            {Array.isArray(workflow.steps) ? workflow.steps.length : 0}
+                                        </span>
                                     </div>
                                 </div>
                             </CardContent>
-                            <CardFooter className="border-t bg-muted/30 p-4">
-                                <div className="flex w-full items-center justify-between">
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Clock className="h-3 w-3" /> Updated {new Date(workflow.updatedAt).toLocaleDateString()}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                            <Play className="h-4 w-4" />
-                                        </Button>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem>Edit Workflow</DropdownMenuItem>
-                                                <DropdownMenuItem>View History</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(workflow.id)}>
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </div>
+                            <CardFooter>
+                                <Link href={`/dashboard/workflows/${workflow.id}`} className="w-full">
+                                    <Button variant="outline" className="w-full">
+                                        View Details
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </Link>
                             </CardFooter>
                         </Card>
                     ))}
-
-                    {/* Create Card */}
-                    <Card className="flex flex-col items-center justify-center border-dashed border-2 hover:border-primary/50 hover:bg-muted/50 cursor-pointer transition-all min-h-[300px]"
-                        onClick={() => setIsCreateOpen(true)}>
-                        <div className="flex flex-col items-center gap-4 text-center p-6">
-                            <div className="p-4 rounded-full bg-primary/10">
-                                <GitBranch className="h-8 w-8 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-lg">Design Workflow</h3>
-                                <p className="text-sm text-muted-foreground max-w-[200px]">
-                                    Create a new automation pipeline with drag-and-drop builder.
-                                </p>
-                            </div>
-                            <Button variant="outline" className="mt-2">Start Builder</Button>
-                        </div>
-                    </Card>
                 </div>
-            </div>
-        );
-    }
+            )}
+        </div>
+    );
+}

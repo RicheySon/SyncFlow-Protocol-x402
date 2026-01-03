@@ -24,9 +24,14 @@ export default function HomePage() {
                         <Link href="/docs" className="text-sm font-medium hover:text-primary transition-colors">
                             Docs
                         </Link>
-                        <Button asChild>
-                            <Link href="/dashboard">Launch Dashboard</Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" asChild>
+                                <Link href="/login">Login</Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href="/login">Get Started</Link>
+                            </Button>
+                        </div>
                     </nav>
                 </div>
             </header>
@@ -49,7 +54,7 @@ export default function HomePage() {
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                             <Button size="lg" asChild>
-                                <Link href="/dashboard">
+                                <Link href="/login">
                                     Launch Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
                             </Button>

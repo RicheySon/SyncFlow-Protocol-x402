@@ -1,4 +1,4 @@
-import { apiClient, TokenManager } from '../api';
+import { apiClient, TokenManager, UserManager } from '../api';
 
 export interface SignupData {
     email: string;
@@ -29,6 +29,7 @@ export const authApi = {
         });
 
         TokenManager.setToken(response.token);
+        UserManager.setUser(response.user);
         return response;
     },
 
@@ -39,10 +40,12 @@ export const authApi = {
         });
 
         TokenManager.setToken(response.token);
+        UserManager.setUser(response.user);
         return response;
     },
 
     logout: () => {
         TokenManager.clearToken();
+        UserManager.clearUser();
     },
 };
