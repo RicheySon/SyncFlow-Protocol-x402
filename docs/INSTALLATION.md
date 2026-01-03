@@ -2,164 +2,126 @@
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-
-- **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
-- **pnpm** (v8 or higher) - Install with `npm install -g pnpm`
-- **PostgreSQL** (v14 or higher) - [Download](https://www.postgresql.org/download/)
-- **Git** - [Download](https://git-scm.com/)
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher (comes with Node.js)
+- **PostgreSQL**: v14 or higher
+- **Git**: For cloning the repository
 
 ## Step 1: Clone the Repository
 
-\`\`\`bash
-git clone https://github.com/syncflow/syncflow-protocol.git
-cd syncflow-protocol
-\`\`\`
+```bash
+git clone https://github.com/RicheySon/SyncFlow-Protocol-x402.git
+cd SyncFlow-Protocol-x402
+```
 
 ## Step 2: Install Dependencies
 
-\`\`\`bash
-# Install all workspace dependencies
-pnpm install
-\`\`\`
+```bash
+npm install
+```
 
-This command will install dependencies for all packages in the monorepo.
+This command will install all dependencies for all packages in the monorepo.
 
-## Step 3: Set Up Environment Variables
-
-### Frontend
-
-\`\`\`bash
-cd packages/frontend
-cp .env.example .env.local
-\`\`\`
-
-Edit `.env.local` and configure:
-- `NEXT_PUBLIC_API_URL`: Backend API URL (default: http://localhost:3001)
-- `NEXT_PUBLIC_CONTRACT_*`: Will be filled after contract deployment
+## Step 3: Configure Environment Variables
 
 ### Backend
 
-\`\`\`bash
-cd ../backend
-cp .env.example .env
-\`\`\`
+Create `packages/backend/.env`:
 
-Edit `.env` and configure:
-- `DATABASE_URL`: PostgreSQL connection string
-- `JWT_SECRET`: Random secret key for authentication
-- `CRONOS_RPC_URL`: Cronos EVM RPC (https://evm.cronos.org)
-- `PRIVATE_KEY`: Your wallet private key (keep secure!)
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/syncflow"
+JWT_SECRET="your-secret-key-here-change-in-production"
+PORT=3001
+CRONOS_RPC_URL="https://evm-t3.cronos.org"
+```
 
-### Contracts
+Replace `USER` and `PASSWORD` with your PostgreSQL credentials.
 
-\`\`\`bash
-cd ../contracts
-cp .env.example .env
-\`\`\`
+### Frontend
 
-Edit `.env` and configure:
-- `PRIVATE_KEY`: Deployment wallet private key
-- `CRONOS_EXPLORER_API_KEY`: For contract verification (get from Cronoscan)
+Create `packages/frontend/.env.local`:
 
-## Step 4: Set Up Database
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
 
-\`\`\`bash
+## Step 4: Database Setup
+
+```bash
 cd packages/backend
+npx prisma migrate dev
+npx prisma generate
+```
 
-# Generate Prisma client
-pnpm prisma:generate
+## Step 5: Seed the Database (Optional)
 
-# Run migrations
-pnpm prisma:migrate
-\`\`\`
+```bash
+npx tsx scripts/seed.ts
+```
 
-## Step 5: Deploy Smart Contracts
+This creates a test user and agent for development.
 
-### Deploy to Cronos Testnet (Recommended First)
+## Step 6: Run the Application
 
-\`\`\`bash
-cd ../contracts
+### Terminal 1 - Backend
 
-# Compile contracts
-pnpm compile
+```bash
+cd packages/backend
+npm run dev
+```
 
-# Deploy to testnet
-pnpm deploy:testnet
-\`\`\`
+The backend will start on `http://localhost:3001`.
 
-Note the deployed contract addresses and add them to your frontend and backend `.env` files.
+### Terminal 2 - Frontend
 
-### Deploy to Cronos Mainnet
+```bash
+cd packages/frontend
+npm run dev
+```
 
-\`\`\`bash
-pnpm deploy:mainnet
-
-# Verify contracts
-pnpm verify
-\`\`\`
-
-## Step 6: Start Development Servers
-
-From the root directory:
-
-\`\`\`bash
-# Start all services in development mode
-pnpm dev
-\`\`\`
-
-This will start:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:3001
+The frontend will start on `http://localhost:3000`.
 
 ## Step 7: Verify Installation
 
-1. Open http://localhost:3000 in your browser
-2. You should see the SyncFlow landing page
-3. Navigate to the dashboard
-4. Try creating a test agent
+Visit `http://localhost:3000` and you should see the SyncFlow dashboard.
+
+## Testing Components
+
+### Test Core Services
+
+```bash
+cd packages/backend
+npx tsx scripts/test-core-services.ts
+```
+
+### Test MCP Server
+
+```bash
+cd packages/backend
+npx tsx scripts/test-mcp.ts
+```
+
+### Test Workflow Execution
+
+```bash
+cd packages/backend
+npx tsx scripts/test-workflow.ts
+```
 
 ## Troubleshooting
 
 ### Port Already in Use
 
-If port 3000 or 3001 is already in use:
-
-\`\`\`bash
-# Frontend
-cd packages/frontend
-PORT=3002 pnpm dev
-
-# Backend
-cd packages/backend
-PORT=3003 pnpm dev
-\`\`\`
+If port 3000 or 3001 is already in use, kill the process or change the port in the environment variables.
 
 ### Database Connection Errors
 
-Verify PostgreSQL is running:
+Ensure PostgreSQL is running and the connection string in `.env` is correct.
 
-\`\`\`bash
-# On macOS/Linux
-pg_isready
+### Module Not Found Errors
 
-# On Windows (PowerShell)
-pg_ctl status
-\`\`\`
+Run `npm install` again from the root directory.
 
-### Contract Deployment Fails
+## Production Deployment
 
-Ensure you have sufficient CRO for gas fees on your deployment wallet. Get testnet TCRO from the [Cronos Faucet](https://cronos.org/faucet).
-
-## Next Steps
-
-- Read the [Architecture Documentation](./ARCHITECTURE.md)
-- Explore [SDK Guide](./SDK_GUIDE.md)
-- Review [API Reference](./API_REFERENCE.md)
-- Check out [Examples](../examples/)
-
-## Getting Help
-
-- Open an issue on [GitHub](https://github.com/syncflow/syncflow-protocol/issues)
-- Join our [Discord](https://discord.gg/syncflow)
-- Email: support@syncflow.dev
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for production deployment instructions
