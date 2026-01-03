@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Code,
     Copy,
@@ -10,6 +10,7 @@ import {
     ShieldCheck,
     CheckCircle2
 } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,7 +48,15 @@ const executeTxCode = `const receipt = await agent.execute({
 });`;
 
 export default function DevToolsPage() {
-    const [activeTab, setActiveTab] = useState('sdk');
+    const [statusData, setStatusData] = useState<any>(null);
+    const [configData, setConfigData] = useState<any>(null);
+
+    useEffect(() => {
+        // Fetch Status
+        apiClient('/devtools/status').then(setStatusData).catch(console.error);
+        // Fetch Config
+        apiClient('/devtools/config').then(setConfigData).catch(console.error);
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -75,24 +84,23 @@ export default function DevToolsPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Public Key</Label>
+                                <Label>Chain ID</Label>
                                 <div className="flex items-center space-x-2">
-                                    <Input readOnly value="pk_live_51M..." className="font-mono text-xs" />
+                                    <Input readOnly value={configData?.chainId || 'Loading...'} className="font-mono text-xs" />
                                     <Button size="icon" variant="outline" className="shrink-0">
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>Secret Key</Label>
+                                <Label>RPC URL</Label>
                                 <div className="flex items-center space-x-2">
-                                    <Input type="password" value="sk_live_..." className="font-mono text-xs" />
+                                    <Input readOnly value={configData?.rpcUrl || 'Loading...'} className="font-mono text-xs" />
                                     <Button size="icon" variant="outline" className="shrink-0">
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
-                            <Button className="w-full">Generate New Keys</Button>
                         </CardContent>
                     </Card>
 
@@ -105,15 +113,21 @@ export default function DevToolsPage() {
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <span className="text-sm">Mainnet API</span>
-                                <Badge variant="success">Operational</Badge>
+                                <Badge variant={statusData?.services?.api === 'running' ? 'default' : 'destructive'} className={statusData?.services?.api === 'running' ? 'bg-emerald-500' : ''}>
+                                    {statusData?.services?.api === 'running' ? 'Operational' : 'Down'}
+                                </Badge>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm">Indexer</span>
-                                <Badge variant="success">Operational</Badge>
+                                <span className="text-sm">Database</span>
+                                <Badge variant={statusData?.services?.database === 'connected' ? 'default' : 'destructive'} className={statusData?.services?.database === 'connected' ? 'bg-emerald-500' : ''}>
+                                    {statusData?.services?.database === 'connected' ? 'Connected' : 'Disconnected'}
+                                </Badge>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm">MCP Bridge</span>
-                                <Badge variant="warning">Degraded</Badge>
+                                <span className="text-sm">Cronos RPC</span>
+                                <Badge variant={statusData?.services?.blockchain_rpc?.includes('Block') ? 'default' : 'secondary'} className={statusData?.services?.blockchain_rpc?.includes('Block') ? 'bg-emerald-500' : ''}>
+                                    {statusData?.services?.blockchain_rpc || 'Pending Check'}
+                                </Badge>
                             </div>
                         </CardContent>
                     </Card>

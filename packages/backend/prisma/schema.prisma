@@ -30,6 +30,9 @@ model Agent {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   
+  walletAddress    String? // EVM Wallet Address
+  walletPrivateKey String? // Encrypted Private Key (Simplification for Hackathon: Plaintext)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   

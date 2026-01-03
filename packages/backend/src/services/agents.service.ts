@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
+import { BlockchainService } from './blockchain.service';
 
 const createAgentSchema = z.object({
     name: z.string().min(1),
@@ -20,14 +21,21 @@ export class AgentsService {
     static async createAgent(userId: string, data: z.infer<typeof createAgentSchema>) {
         const validated = createAgentSchema.parse(data);
 
+        // Generate EVM Wallet
+        const wallet = BlockchainService.createWallet();
+
         const agent = await prisma.agent.create({
             data: {
                 ...validated,
                 userId,
+                walletAddress: wallet.address,
+                walletPrivateKey: wallet.privateKey
             },
         });
 
-        return agent;
+        // Remove private key from response
+        const { walletPrivateKey, ...safeAgent } = agent;
+        return safeAgent;
     }
 
     static async getAgents(userId: string) {

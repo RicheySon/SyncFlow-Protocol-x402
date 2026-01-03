@@ -247,6 +247,16 @@ export default function AgentsPage() {
                                         <span className="text-muted-foreground">Agent ID</span>
                                         <span className="font-mono text-xs">{agent.id.slice(0, 8)}...</span>
                                     </div>
+                                    {agent.walletAddress && (
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground flex items-center gap-1">
+                                                <Wallet className="h-3 w-3" /> Wallet
+                                            </span>
+                                            <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded" title={agent.walletAddress}>
+                                                {agent.walletAddress.slice(0, 6)}...{agent.walletAddress.slice(-4)}
+                                            </span>
+                                        </div>
+                                    )}
                                     {agent.description && (
                                         <div className="text-sm text-muted-foreground">
                                             {agent.description}

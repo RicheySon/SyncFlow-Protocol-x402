@@ -3,10 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
 
+import logger from './middlewares/logger.middleware';
+import { rateLimiter } from './middlewares/rateLimit.middleware';
+
 import { authRoutes } from './routes/auth.routes';
 import { agentsRoutes } from './routes/agents.routes';
 import { workflowsRoutes } from './routes/workflows.routes';
 import { transactionsRoutes } from './routes/transactions.routes';
+import devToolsRoutes from './routes/devtools.routes';
 
 const app = express();
 
@@ -14,12 +18,15 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(logger);
+app.use(rateLimiter);
 
 // Routes
 app.use('/auth', authRoutes);
 app.use('/agents', agentsRoutes);
 app.use('/workflows', workflowsRoutes);
 app.use('/transactions', transactionsRoutes);
+app.use('/devtools', devToolsRoutes);
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {

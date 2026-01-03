@@ -8,6 +8,7 @@ export interface Agent {
     status: 'active' | 'paused' | 'error';
     config: string;
     userId: string;
+    walletAddress?: string;
     createdAt: string;
     updatedAt: string;
 }

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ModeToggle } from '@/components/mode-toggle';
 
 const navigation = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -58,7 +59,11 @@ export function DashboardSidebar() {
             </nav>
 
             {/* User Profile */}
-            <div className="border-t border-border p-4">
+            <div className="border-t border-border p-4 space-y-2">
+                <div className="flex justify-between items-center px-1">
+                    <span className="text-xs text-muted-foreground font-medium">Theme</span>
+                    <ModeToggle />
+                </div>
                 <div className="flex items-center gap-3 rounded-lg bg-accent px-3 py-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                         <User className="h-4 w-4" />
