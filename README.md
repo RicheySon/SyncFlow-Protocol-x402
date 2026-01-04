@@ -6,11 +6,12 @@ SyncFlow Protocol is a comprehensive framework for building, deploying, and mana
 
 ## Features
 
-### Core Capabilities
-- **Autonomous Agent Orchestration**: Self-executing agents with configurable risk management and AI decision engines
-- **Multi-Step Workflow Automation**: Chain complex DeFi operations with conditional logic and delays
-- **x402 Payment Protocol**: Batch optimization and settlement verification for efficient cross-chain payments
-- **MCP Integration**: Expose portfolio data, transactions, and market information to AI models via standardized protocol
+### Core Capabilities (Cloakefy-Aligned)
+
+- **Secure Batch Payments (Encrypted Distributions)**: Execute private, batch-optimized payouts to multiple recipients on Cronos EVM.
+- **x402 Settlement**: Unified, secure, and validated payment processing rail for agentic workflows.
+- **Secure Cronos Tokens**: Risk-managed, privacy-preserving token wrappers native to Cronos (replacing eERC).
+- **Entity Management (Smart Wallets)**: Create and manage autonomous agents with dedicated smart wallets and governance controls.
 
 ### Protocol Integrations
 - **VVS Finance**: Live DEX swap quote integration on Cronos
@@ -27,7 +28,7 @@ SyncFlow Protocol is a comprehensive framework for building, deploying, and mana
 
 **Frontend**: Next.js 14, React, TailwindCSS, Shadcn/UI  
 **Backend**: Express.js, Prisma ORM, PostgreSQL  
-**Blockchain**: Ethers.js v6, Cronos zkEVM Testnet  
+**Blockchain**: Ethers.js v6, Cronos EVM (Chain ID 25)  
 **Agent System**: TypeScript, Custom Orchestrator, Risk Manager  
 **MCP**: Model Context Protocol SDK, stdio transport  
 **SDK**: Axios, Zod validation

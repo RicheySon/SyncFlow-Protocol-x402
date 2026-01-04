@@ -118,7 +118,7 @@ Manages payment protocol interactions:
 - Constructs payment transactions
 - Coordinates with settlement monitor
 
-#### Batch Payment Manager
+#### Secure Batch Payments (Encrypted Distributions)
 Optimizes multiple payments into batches:
 - Queues individual payments
 - Combines into Merkle trees
@@ -150,7 +150,7 @@ Mock integrations demonstrating extensibility.
 
 **PostgreSQL**: Primary datastore for users, agents, workflows, and transactions.
 
-**Cronos zkEVM**: Blockchain layer for wallet management, transaction execution, and DeFi protocol interaction.
+**Cronos EVM**: Blockchain layer for wallet management, transaction execution, and DeFi protocol interaction.
 
 ### MCP Layer
 

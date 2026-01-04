@@ -10,8 +10,8 @@ const envSchema = z.object({
     PORT: z.string().default('3001'),
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
     JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
-    CRONOS_RPC_URL: z.string().url().optional(),
-    CRONOS_CHAIN_ID: z.string().optional(),
+    CRONOS_RPC_URL: z.string().url().default('https://evm.cronos.org'),
+    CRONOS_CHAIN_ID: z.string().default('25'),
 });
 
 const parseEnv = () => {

@@ -55,9 +55,9 @@ export default function AgentsPage() {
     // Form state
     const [formData, setFormData] = useState({
         name: '',
-        type: 'protocol',
+        type: 'invest',
         description: '',
-        baseToken: 'eUSDC',
+        baseToken: 'WCRO',
     });
 
     // Fetch agents on mount
@@ -88,7 +88,7 @@ export default function AgentsPage() {
                 config: JSON.stringify({ risk: 'low', baseToken: formData.baseToken }), // Default config with Base Token
             });
             setIsCreateOpen(false);
-            setFormData({ name: '', type: 'protocol', description: '', baseToken: 'eUSDC' });
+            setFormData({ name: '', type: 'invest', description: '', baseToken: 'WCRO' });
             fetchAgents(); // Refresh list
         } catch (err: any) {
             alert(`Failed to create agent: ${err.message}`);
@@ -157,6 +157,7 @@ export default function AgentsPage() {
                                     <Label htmlFor="baseToken">Base Token</Label>
                                     <Select
                                         value={formData.baseToken}
+                                        defaultValue={formData.baseToken}
                                         onValueChange={(value) =>
                                             setFormData({ ...formData, baseToken: value })
                                         }
@@ -165,9 +166,9 @@ export default function AgentsPage() {
                                             <SelectValue placeholder="Select base token" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[100]">
-                                            <SelectItem value="eUSDC">eUSDC</SelectItem>
-                                            <SelectItem value="eAVAX">eAVAX</SelectItem>
-                                            <SelectItem value="eUSDT">eUSDT</SelectItem>
+                                            <SelectItem value="WCRO">WCRO</SelectItem>
+                                            <SelectItem value="USDC">USDC</SelectItem>
+                                            <SelectItem value="USDT">USDT</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -175,6 +176,7 @@ export default function AgentsPage() {
                                     <Label htmlFor="type">Entity Type</Label>
                                     <Select
                                         value={formData.type}
+                                        defaultValue={formData.type}
                                         onValueChange={(value: any) =>
                                             setFormData({ ...formData, type: value })
                                         }
@@ -183,10 +185,9 @@ export default function AgentsPage() {
                                             <SelectValue placeholder="Select entity type" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[100]">
-                                            <SelectItem value="protocol">Protocol</SelectItem>
-                                            <SelectItem value="dao">DAO</SelectItem>
-                                            <SelectItem value="fund">Investment Fund</SelectItem>
-                                            <SelectItem value="individual">Individual</SelectItem>
+                                            <SelectItem value="invest">Investment</SelectItem>
+                                            <SelectItem value="trade">Trading</SelectItem>
+                                            <SelectItem value="research">Research</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

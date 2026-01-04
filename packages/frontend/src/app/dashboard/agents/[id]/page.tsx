@@ -75,7 +75,7 @@ function BatchPaymentModal() {
         { title: 'Submit Request', icon: CreditCard, desc: 'Analyzing payout recipients...' },
         { title: 'Fee Calculation', icon: Activity, desc: 'Validating x402 fees (0.1%)...' },
         { title: 'Encryption', icon: Lock, desc: 'Encrypting batch payload w/ eERC...' },
-        { title: 'Execution', icon: Zap, desc: 'Initiating execution on Avalanche C-Chain...' },
+        { title: 'Execution', icon: Zap, desc: 'Initiating execution on Cronos EVM...' },
         { title: 'Distribution', icon: CheckCircle2, desc: 'Recipients receiving encrypted payouts.' }
     ];
 
