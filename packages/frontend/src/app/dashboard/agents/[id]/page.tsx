@@ -39,39 +39,149 @@ const mockTransactions: any[] = [];
 const mockMcpServers: any[] = [];
 
 // BatchPaymentModal component remains the same
-function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
+function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
     const [step, setStep] = useState(0);
     const [processing, setProcessing] = useState(false);
+    const [walletConnected, setWalletConnected] = useState(false);
+    const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    const [txHashes, setTxHashes] = useState<string[]>([]);
+    const [recipientStatuses, setRecipientStatuses] = useState<{ [key: string]: 'pending' | 'success' | 'error' }>({});
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [totalAmount, setTotalAmount] = useState(0);
 
     const steps = [
-        { title: 'Submit Request', icon: CreditCard, desc: 'Analyzing payout recipients...' },
-        { title: 'Fee Calculation', icon: Activity, desc: 'Validating x402 fees (0.1%)...' },
-        { title: 'Encryption', icon: Lock, desc: 'Encrypting batch payload w/ eERC...' },
-        { title: 'Execution', icon: Zap, desc: 'Initiating execution on Cronos EVM...' },
-        { title: 'Distribution', icon: CheckCircle2, desc: 'Recipients receiving encrypted payouts.' }
+        { title: 'Connect Wallet', icon: Wallet, desc: 'Connect your wallet to proceed...' },
+        { title: 'Validate Balance', icon: Activity, desc: 'Checking sufficient TCRO balance...' },
+        { title: 'Execute Payments', icon: Zap, desc: 'Sending TCRO to recipients...' },
+        { title: 'Confirm Transactions', icon: ShieldCheck, desc: 'Waiting for blockchain confirmations...' },
+        { title: 'Complete', icon: CheckCircle2, desc: 'All payments processed successfully!' }
     ];
 
-    const runSimulation = () => {
-        setProcessing(true);
-        setStep(0);
+    // Calculate total amount when modal opens
+    const calculateTotal = () => {
+        const total = subUsers.reduce((sum, user) => {
+            const amount = parseFloat(user.amount || '0');
+            return sum + (user.currency === 'TCRO' ? amount : 0);
+        }, 0);
+        setTotalAmount(total);
+    };
 
-        let currentStep = 0;
-        const interval = setInterval(() => {
-            currentStep++;
-            setStep(currentStep);
-            if (currentStep >= steps.length - 1) {
-                clearInterval(interval);
-                setTimeout(() => setProcessing(false), 1000);
+    const connectWallet = async () => {
+        try {
+            const { connectWallet: connect } = await import('@/lib/wallet');
+            const state = await connect();
+            setWalletConnected(state.isConnected);
+            setWalletAddress(state.address);
+            setStep(1);
+        } catch (error: any) {
+            setErrorMessage(error.message || 'Failed to connect wallet');
+        }
+    };
+
+    const validateBalance = async () => {
+        try {
+            if (!walletAddress) {
+                throw new Error('Wallet not connected');
             }
-        }, 1500);
+
+            const { getTCROBalance } = await import('@/lib/wallet');
+
+            // Get user's wallet balance (not contract balance)
+            const balance = await getTCROBalance(walletAddress);
+            const balanceNum = parseFloat(balance);
+
+            // Need total + estimated gas (0.1 TCRO buffer per transaction)
+            const estimatedGas = subUsers.length * 0.1;
+            const requiredBalance = totalAmount + estimatedGas;
+
+            console.log('Balance check:', { balance: balanceNum, required: requiredBalance });
+
+            if (balanceNum < requiredBalance) {
+                throw new Error(`Insufficient balance. Need ${requiredBalance.toFixed(2)} TCRO, have ${balanceNum.toFixed(2)} TCRO`);
+            }
+
+            // Move to execution step
+            setStep(2);
+
+            // Small delay before executing
+            setTimeout(() => {
+                executeBatchPayments();
+            }, 500);
+
+        } catch (error: any) {
+            console.error('Balance validation error:', error);
+            setErrorMessage(error.message || 'Failed to validate balance');
+            setProcessing(false);
+            setStep(0); // Reset to start
+        }
+    };
+
+    const executeBatchPayments = async () => {
+        try {
+            const { sendTCRODeposit } = await import('@/lib/wallet');
+            const hashes: string[] = [];
+
+            // Filter only TCRO recipients
+            const tcroRecipients = subUsers.filter(user => user.currency === 'TCRO');
+
+            for (const user of tcroRecipients) {
+                try {
+                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'pending' }));
+
+                    const tx = await sendTCRODeposit(user.address, user.amount);
+                    hashes.push(tx.hash);
+
+                    // Wait for confirmation
+                    await tx.wait();
+
+                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'success' }));
+                } catch (error) {
+                    console.error(`Failed to send to ${user.address}:`, error);
+                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'error' }));
+                }
+            }
+
+            setTxHashes(hashes);
+            setStep(3);
+
+            // Move to complete after brief delay
+            setTimeout(() => {
+                setStep(4);
+                setProcessing(false);
+            }, 1500);
+
+        } catch (error: any) {
+            setErrorMessage(error.message);
+            setProcessing(false);
+        }
+    };
+
+    const runBatchPayment = async () => {
+        setProcessing(true);
+        setErrorMessage(null);
+        setTxHashes([]);
+        setRecipientStatuses({});
+        calculateTotal();
+
+        if (!walletConnected) {
+            setStep(0);
+            await connectWallet();
+        } else {
+            setStep(1);
+            await validateBalance();
+        }
     };
 
     const handleClose = () => {
         setStep(0);
         setProcessing(false);
+        setErrorMessage(null);
+        setTxHashes([]);
+        setRecipientStatuses({});
     };
 
     const isCompleted = step === steps.length - 1 && !processing;
+    const tcroRecipients = subUsers.filter(user => user.currency === 'TCRO');
 
     return (
         <Dialog>
@@ -82,16 +192,15 @@ function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>x402 Batch Settlement</DialogTitle>
+                    <DialogTitle>Batch Payment Execution</DialogTitle>
                     <DialogDescription>
-                        Secure, encrypted multi-party distribution.
+                        Execute TCRO payments to {tcroRecipients.length} recipient{tcroRecipients.length !== 1 ? 's' : ''}.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-6">
                     {/* Status Steps */}
                     <div className="flex justify-between items-start relative px-2">
-                        {/* Connecting Line */}
                         <div className="absolute top-4 left-0 w-full h-0.5 bg-slate-800 -z-10" />
 
                         {steps.map((s, i) => (
@@ -111,19 +220,79 @@ function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
                     </div>
 
                     {/* Current Step Detail */}
-                    <div className="mt-8 text-center min-h-[60px]">
+                    <div className="mt-8 min-h-[100px]">
                         {processing || step > 0 ? (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <h3 className="font-semibold text-lg text-white mb-1">
-                                    {steps[step]?.title || 'Complete'}
-                                </h3>
-                                <p className="text-sm text-slate-400">
-                                    {steps[step]?.desc || 'Batch distribution completed successfully.'}
-                                </p>
+                            <div className="space-y-4">
+                                <div className="text-center">
+                                    <h3 className="font-semibold text-lg text-white mb-1">
+                                        {steps[step]?.title || 'Complete'}
+                                    </h3>
+                                    <p className="text-sm text-slate-400">
+                                        {steps[step]?.desc || 'All payments completed!'}
+                                    </p>
+                                </div>
+
+                                {/* Show recipient statuses during execution */}
+                                {step >= 2 && tcroRecipients.length > 0 && (
+                                    <div className="bg-slate-900/50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                                        {tcroRecipients.map((user) => (
+                                            <div key={user.id} className="flex items-center justify-between py-1 text-xs">
+                                                <span className="text-slate-400 truncate flex-1">
+                                                    {user.address.slice(0, 10)}...{user.address.slice(-8)}
+                                                </span>
+                                                <span className="text-slate-300 mx-2">{user.amount} TCRO</span>
+                                                {recipientStatuses[user.id] === 'success' && (
+                                                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                                )}
+                                                {recipientStatuses[user.id] === 'pending' && (
+                                                    <RefreshCw className="h-4 w-4 text-blue-400 animate-spin" />
+                                                )}
+                                                {recipientStatuses[user.id] === 'error' && (
+                                                    <span className="text-red-400">✗</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Show transaction hashes when complete */}
+                                {isCompleted && txHashes.length > 0 && (
+                                    <div className="bg-emerald-950 border border-emerald-800 rounded-lg p-3">
+                                        <p className="text-xs text-emerald-300 mb-2">
+                                            {txHashes.length} transaction{txHashes.length !== 1 ? 's' : ''} confirmed
+                                        </p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {txHashes.map((hash, idx) => (
+                                                <a
+                                                    key={idx}
+                                                    href={`https://cronos.org/explorer/testnet3/tx/${hash}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-blue-400 hover:text-blue-300 underline"
+                                                >
+                                                    Tx #{idx + 1}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
-                            <div className="text-slate-400 text-sm">
-                                Ready to distribute funds to {subUsersCount} recipients.
+                            <div className="text-center space-y-3">
+                                <p className="text-slate-400 text-sm">
+                                    Ready to distribute {totalAmount.toFixed(2)} TCRO to {tcroRecipients.length} recipient{tcroRecipients.length !== 1 ? 's' : ''}.
+                                </p>
+                                {tcroRecipients.length === 0 && (
+                                    <p className="text-amber-400 text-xs">
+                                        No TCRO recipients found. Add recipients with TCRO currency.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {errorMessage && (
+                            <div className="mt-4 bg-red-950 border border-red-800 rounded-lg p-3">
+                                <p className="text-sm text-red-300">{errorMessage}</p>
                             </div>
                         )}
                     </div>
@@ -131,17 +300,18 @@ function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
 
                 <DialogFooter>
                     <Button
-                        onClick={isCompleted ? handleClose : runSimulation}
-                        disabled={processing}
+                        onClick={isCompleted ? handleClose : runBatchPayment}
+                        disabled={processing || tcroRecipients.length === 0}
                         className={isCompleted ? "bg-slate-700 hover:bg-slate-600" : "bg-emerald-500 hover:bg-emerald-600"}
                     >
-                        {processing ? 'Processing...' : (isCompleted ? 'Close Report' : 'Execute Batch')}
+                        {processing ? 'Processing...' : (isCompleted ? 'Close' : 'Execute Batch')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 }
+
 
 function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
     const [open, setOpen] = useState(false);
@@ -208,7 +378,7 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
                                     <SelectValue placeholder="Select currency" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="CRO">CRO</SelectItem>
+                                    <SelectItem value="TCRO">TCRO</SelectItem>
                                     <SelectItem value="USDC">USDC</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -301,7 +471,7 @@ function EditUserModal({ user, onEditUser, onDeleteUser }: { user: any; onEditUs
                                     <SelectValue placeholder="Select currency" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="CRO">CRO</SelectItem>
+                                    <SelectItem value="TCRO">TCRO</SelectItem>
                                     <SelectItem value="USDC">USDC</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -339,16 +509,73 @@ function EditUserModal({ user, onEditUser, onDeleteUser }: { user: any; onEditUs
 function DepositModal() {
     const [open, setOpen] = useState(false);
     const [formData, setFormData] = useState({
-        currency: 'USDC',
+        currency: 'TCRO',
         amount: ''
     });
+    const [walletConnected, setWalletConnected] = useState(false);
+    const [walletAddress, setWalletAddress] = useState<string | null>(null);
+    const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+    const [txHash, setTxHash] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Import wallet utilities at top of file if not already imported
+    const connectWallet = async () => {
+        try {
+            // Dynamic import to avoid SSR issues
+            const { connectWallet: connect } = await import('@/lib/wallet');
+            const state = await connect();
+            setWalletConnected(state.isConnected);
+            setWalletAddress(state.address);
+        } catch (error: any) {
+            setErrorMessage(error.message || 'Failed to connect wallet');
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement actual deposit logic
-        alert(`Deposit request: ${formData.amount} ${formData.currency}`);
-        setFormData({ currency: 'USDC', amount: '' });
-        setOpen(false);
+
+        if (!walletConnected) {
+            setErrorMessage('Please connect your wallet first');
+            return;
+        }
+
+        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+            setErrorMessage('Please enter a valid amount');
+            return;
+        }
+
+        setTxStatus('pending');
+        setErrorMessage(null);
+
+        try {
+            // Get the agent's contract address from config
+            const { CONTRACTS } = await import('@/lib/config');
+            const { sendTCRODeposit } = await import('@/lib/wallet');
+
+            const tx = await sendTCRODeposit(CONTRACTS.agentWallet, formData.amount);
+            setTxHash(tx.hash);
+
+            // Wait for transaction confirmation
+            await tx.wait();
+            setTxStatus('success');
+
+            // Reset form after successful deposit
+            setTimeout(() => {
+                setFormData({ currency: 'TCRO', amount: '' });
+                setTxStatus('idle');
+                setTxHash(null);
+                setOpen(false);
+            }, 3000);
+        } catch (error: any) {
+            console.error('Deposit error:', error);
+            setTxStatus('error');
+            setErrorMessage(error.message || 'Transaction failed');
+        }
+    };
+
+    const getExplorerLink = () => {
+        if (!txHash) return '#';
+        return `https://cronos.org/explorer/testnet3/tx/${txHash}`;
     };
 
     return (
@@ -362,47 +589,119 @@ function DepositModal() {
                 <DialogHeader>
                     <DialogTitle>Deposit Funds</DialogTitle>
                     <DialogDescription>
-                        Add funds to this agent's wallet.
+                        Add TCRO to this agent's wallet on Cronos Testnet.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="deposit-currency">Currency</Label>
-                            <Select
-                                value={formData.currency}
-                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                            >
-                                <SelectTrigger id="deposit-currency">
-                                    <SelectValue placeholder="Select currency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="CRO">CRO</SelectItem>
-                                    <SelectItem value="USDC">USDC</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="deposit-amount">Amount</Label>
-                            <Input
-                                id="deposit-amount"
-                                type="number"
-                                step="0.01"
-                                placeholder="e.g. 1000.00"
-                                value={formData.amount}
-                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="rounded-lg bg-slate-900 border border-slate-800 p-3">
-                            <p className="text-xs text-slate-400">
-                                Send <span className="font-mono text-white">{formData.amount || '0'} {formData.currency}</span> to the wallet address above to complete the deposit.
-                            </p>
-                        </div>
+                        {!walletConnected ? (
+                            <div className="flex flex-col gap-3">
+                                <p className="text-sm text-slate-400">
+                                    Connect your wallet to deposit funds
+                                </p>
+                                <Button type="button" onClick={connectWallet} className="w-full">
+                                    <Wallet className="mr-2 h-4 w-4" />
+                                    Connect Wallet
+                                </Button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="rounded-lg bg-slate-900 border border-slate-800 p-3">
+                                    <p className="text-xs text-slate-400 mb-1">Connected Wallet</p>
+                                    <p className="text-sm font-mono text-emerald-400">
+                                        {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="deposit-currency">Currency</Label>
+                                    <Select
+                                        value={formData.currency}
+                                        onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                                        disabled={txStatus === 'pending'}
+                                    >
+                                        <SelectTrigger id="deposit-currency">
+                                            <SelectValue placeholder="Select currency" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="TCRO">TCRO (Testnet)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="deposit-amount">Amount</Label>
+                                    <Input
+                                        id="deposit-amount"
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="e.g. 10.00"
+                                        value={formData.amount}
+                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                        disabled={txStatus === 'pending'}
+                                        required
+                                    />
+                                </div>
+
+                                {txStatus === 'pending' && (
+                                    <div className="rounded-lg bg-blue-950 border border-blue-800 p-3">
+                                        <div className="flex items-center gap-2">
+                                            <RefreshCw className="h-4 w-4 animate-spin text-blue-400" />
+                                            <p className="text-sm text-blue-300">
+                                                Transaction pending...
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {txStatus === 'success' && txHash && (
+                                    <div className="rounded-lg bg-emerald-950 border border-emerald-800 p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                            <p className="text-sm text-emerald-300">
+                                                Deposit successful!
+                                            </p>
+                                        </div>
+                                        <a
+                                            href={getExplorerLink()}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-blue-400 hover:text-blue-300 underline"
+                                        >
+                                            View on Explorer →
+                                        </a>
+                                    </div>
+                                )}
+
+                                {txStatus === 'error' && (
+                                    <div className="rounded-lg bg-red-950 border border-red-800 p-3">
+                                        <p className="text-sm text-red-300">
+                                            {errorMessage || 'Transaction failed'}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {errorMessage && txStatus === 'idle' && (
+                                    <div className="rounded-lg bg-red-950 border border-red-800 p-3">
+                                        <p className="text-sm text-red-300">{errorMessage}</p>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
-                    <DialogFooter>
-                        <Button type="submit">Generate Deposit Address</Button>
-                    </DialogFooter>
+                    {walletConnected && (
+                        <DialogFooter>
+                            <Button
+                                type="submit"
+                                disabled={txStatus === 'pending' || txStatus === 'success'}
+                                className={txStatus === 'success' ? 'bg-emerald-600' : ''}
+                            >
+                                {txStatus === 'pending' ? 'Processing...' :
+                                    txStatus === 'success' ? 'Deposit Complete' :
+                                        'Send Deposit'}
+                            </Button>
+                        </DialogFooter>
+                    )}
                 </form>
             </DialogContent>
         </Dialog>
@@ -495,6 +794,25 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
     const [subUsers, setSubUsers] = useState<any[]>([]); // Initialize empty
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [tcroBalance, setTcroBalance] = useState<string>('0.00');
+    const [balanceLoading, setBalanceLoading] = useState(false);
+
+    // Fetch agent balance
+    const fetchBalance = async () => {
+        if (!agent) return;
+
+        try {
+            setBalanceLoading(true);
+            const { CONTRACTS } = await import('@/lib/config');
+            const { getTCROBalance } = await import('@/lib/wallet');
+            const balance = await getTCROBalance(CONTRACTS.agentWallet);
+            setTcroBalance(parseFloat(balance).toFixed(2));
+        } catch (error) {
+            console.error('Error fetching balance:', error);
+        } finally {
+            setBalanceLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchAgent = async () => {
@@ -514,6 +832,13 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
             fetchAgent();
         }
     }, [params.id]);
+
+    // Fetch balance when agent is loaded
+    useEffect(() => {
+        if (agent) {
+            fetchBalance();
+        }
+    }, [agent]);
 
     const handleAddUser = (user: any) => {
         setSubUsers([...subUsers, user]);
@@ -712,8 +1037,14 @@ IF (wallet.cro > 10000) {
                                 </div>
 
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-400">CRO Balance</span>
-                                    <span className="font-mono">0.00</span>
+                                    <span className="text-slate-400">TCRO Balance</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono">{balanceLoading ? '...' : tcroBalance}</span>
+                                        <RefreshCw
+                                            className={`h-3 w-3 text-slate-500 cursor-pointer hover:text-white ${balanceLoading ? 'animate-spin' : ''}`}
+                                            onClick={fetchBalance}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-slate-400">USDC Balance</span>
@@ -722,7 +1053,7 @@ IF (wallet.cro > 10000) {
                             </div>
 
                             <div className="space-y-2">
-                                <BatchPaymentModal subUsersCount={subUsers.length} />
+                                <BatchPaymentModal subUsers={subUsers} />
                                 <div className="grid grid-cols-2 gap-2">
                                     <DepositModal />
                                     <KeysModal agent={agent} />

@@ -20,6 +20,9 @@ contract SyncFlowAgent is Ownable {
     
     function deposit() external payable {}
     
+    // Allow contract to receive plain TCRO transfers
+    receive() external payable {}
+    
     function withdraw(uint256 amount) external onlyOwner {
         require(address(this).balance >= amount, "Insufficient balance");
         payable(owner()).transfer(amount);
