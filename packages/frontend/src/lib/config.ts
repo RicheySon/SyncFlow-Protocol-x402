@@ -1,8 +1,8 @@
 export const CRONOS_CONFIG = {
-    chainId: 25,
-    chainName: 'Cronos Mainnet',
-    rpcUrl: process.env.NEXT_PUBLIC_CRONOS_RPC_URL || 'https://evm.cronos.org',
-    explorerUrl: process.env.NEXT_PUBLIC_CRONOS_EXPLORER || 'https://cronos.org/explorer',
+    chainId: 338,
+    chainName: 'Cronos Testnet',
+    rpcUrl: process.env.NEXT_PUBLIC_CRONOS_RPC_URL || 'https://evm-t3.cronos.org',
+    explorerUrl: process.env.NEXT_PUBLIC_CRONOS_EXPLORER || 'https://cronos.org/explorer/testnet3',
     nativeCurrency: {
         name: 'Cronos',
         symbol: 'CRO',
@@ -11,7 +11,7 @@ export const CRONOS_CONFIG = {
 };
 
 export const CONTRACTS = {
-    agentWallet: process.env.NEXT_PUBLIC_CONTRACT_AGENT_WALLET || '',
+    agentWallet: process.env.NEXT_PUBLIC_CONTRACT_AGENT_WALLET || '0x8F322851023970407F7B7f095E3294f0bf0780e6',
     paymentRouter: process.env.NEXT_PUBLIC_CONTRACT_PAYMENT_ROUTER || '',
     conditionalExecutor: process.env.NEXT_PUBLIC_CONTRACT_CONDITIONAL_EXECUTOR || '',
 };

@@ -66,6 +66,13 @@ function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
         }, 1500);
     };
 
+    const handleClose = () => {
+        setStep(0);
+        setProcessing(false);
+    };
+
+    const isCompleted = step === steps.length - 1 && !processing;
+
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -124,11 +131,11 @@ function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
 
                 <DialogFooter>
                     <Button
-                        onClick={runSimulation}
+                        onClick={isCompleted ? handleClose : runSimulation}
                         disabled={processing}
-                        className={step === steps.length - 1 && !processing ? "bg-slate-700" : "bg-emerald-500 hover:bg-emerald-600"}
+                        className={isCompleted ? "bg-slate-700 hover:bg-slate-600" : "bg-emerald-500 hover:bg-emerald-600"}
                     >
-                        {processing ? 'Processing...' : (step === steps.length - 1 ? 'Close Report' : 'Execute Batch')}
+                        {processing ? 'Processing...' : (isCompleted ? 'Close Report' : 'Execute Batch')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -141,17 +148,17 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
     const [formData, setFormData] = useState({
         name: '',
         address: '',
-        allocation: ''
+        currency: 'USDC',
+        amount: ''
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onAddUser({
             id: Date.now().toString(),
-            ...formData,
-            allocation: formData.allocation.includes('%') ? formData.allocation : `${formData.allocation}%`
+            ...formData
         });
-        setFormData({ name: '', address: '', allocation: '' });
+        setFormData({ name: '', address: '', currency: 'USDC', amount: '' });
         setOpen(false);
     };
 
@@ -192,12 +199,29 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="allocation">Allocation (%)</Label>
+                            <Label htmlFor="currency">Currency</Label>
+                            <Select
+                                value={formData.currency}
+                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                            >
+                                <SelectTrigger id="currency">
+                                    <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="CRO">CRO</SelectItem>
+                                    <SelectItem value="USDC">USDC</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="amount">Amount</Label>
                             <Input
-                                id="allocation"
-                                placeholder="e.g. 20"
-                                value={formData.allocation}
-                                onChange={(e) => setFormData({ ...formData, allocation: e.target.value })}
+                                id="amount"
+                                type="number"
+                                step="0.01"
+                                placeholder="e.g. 100.50"
+                                value={formData.amount}
+                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                 required
                             />
                         </div>
@@ -211,21 +235,26 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
     );
 }
 
-function EditUserModal({ user, onEditUser }: { user: any; onEditUser: (userId: string, updatedUser: any) => void }) {
+function EditUserModal({ user, onEditUser, onDeleteUser }: { user: any; onEditUser: (userId: string, updatedUser: any) => void; onDeleteUser: (userId: string) => void }) {
     const [open, setOpen] = useState(false);
     const [formData, setFormData] = useState({
         name: user.name,
         address: user.address,
-        allocation: user.allocation.replace('%', '')
+        currency: user.currency || 'USDC',
+        amount: user.amount || ''
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onEditUser(user.id, {
-            ...formData,
-            allocation: formData.allocation.includes('%') ? formData.allocation : `${formData.allocation}%`
-        });
+        onEditUser(user.id, formData);
         setOpen(false);
+    };
+
+    const handleDelete = () => {
+        if (confirm(`Are you sure you want to remove ${user.name} from the distribution list?`)) {
+            onDeleteUser(user.id);
+            setOpen(false);
+        }
     };
 
     return (
@@ -263,20 +292,199 @@ function EditUserModal({ user, onEditUser }: { user: any; onEditUser: (userId: s
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="edit-allocation">Allocation (%)</Label>
+                            <Label htmlFor="edit-currency">Currency</Label>
+                            <Select
+                                value={formData.currency}
+                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                            >
+                                <SelectTrigger id="edit-currency">
+                                    <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="CRO">CRO</SelectItem>
+                                    <SelectItem value="USDC">USDC</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-amount">Amount</Label>
                             <Input
-                                id="edit-allocation"
-                                placeholder="e.g. 20"
-                                value={formData.allocation}
-                                onChange={(e) => setFormData({ ...formData, allocation: e.target.value })}
+                                id="edit-amount"
+                                type="number"
+                                step="0.01"
+                                placeholder="e.g. 100.50"
+                                value={formData.amount}
+                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                 required
                             />
                         </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="flex justify-between items-center">
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDelete}
+                        >
+                            Delete
+                        </Button>
                         <Button type="submit">Save Changes</Button>
                     </DialogFooter>
                 </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function DepositModal() {
+    const [open, setOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        currency: 'USDC',
+        amount: ''
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // TODO: Implement actual deposit logic
+        alert(`Deposit request: ${formData.amount} ${formData.currency}`);
+        setFormData({ currency: 'USDC', amount: '' });
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
+                    Deposit
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Deposit Funds</DialogTitle>
+                    <DialogDescription>
+                        Add funds to this agent's wallet.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="deposit-currency">Currency</Label>
+                            <Select
+                                value={formData.currency}
+                                onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                            >
+                                <SelectTrigger id="deposit-currency">
+                                    <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="CRO">CRO</SelectItem>
+                                    <SelectItem value="USDC">USDC</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="deposit-amount">Amount</Label>
+                            <Input
+                                id="deposit-amount"
+                                type="number"
+                                step="0.01"
+                                placeholder="e.g. 1000.00"
+                                value={formData.amount}
+                                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="rounded-lg bg-slate-900 border border-slate-800 p-3">
+                            <p className="text-xs text-slate-400">
+                                Send <span className="font-mono text-white">{formData.amount || '0'} {formData.currency}</span> to the wallet address above to complete the deposit.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit">Generate Deposit Address</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function KeysModal({ agent }: { agent: Agent | null }) {
+    const [open, setOpen] = useState(false);
+    const [showPrivateKey, setShowPrivateKey] = useState(false);
+    const mockPrivateKey = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        alert('Copied to clipboard!');
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <Key className="mr-2 h-3 w-3" /> Keys
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>Agent Keys</DialogTitle>
+                    <DialogDescription>
+                        Manage your agent's cryptographic keys.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label>Public Address</Label>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(agent?.walletAddress || '')}
+                            >
+                                <Copy className="h-3 w-3 mr-1" /> Copy
+                            </Button>
+                        </div>
+                        <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+                            <p className="font-mono text-xs text-slate-300 break-all">
+                                {agent?.walletAddress || 'Not Deployed'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label>Private Key</Label>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowPrivateKey(!showPrivateKey)}
+                                >
+                                    {showPrivateKey ? 'Hide' : 'Show'}
+                                </Button>
+                                {showPrivateKey && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(mockPrivateKey)}
+                                    >
+                                        <Copy className="h-3 w-3 mr-1" /> Copy
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+                            <p className="font-mono text-xs text-slate-300 break-all">
+                                {showPrivateKey ? mockPrivateKey : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-amber-500 text-xs">
+                            <ShieldCheck className="h-4 w-4" />
+                            <span>Never share your private key with anyone!</span>
+                        </div>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
     );
@@ -312,9 +520,13 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
     };
 
     const handleEditUser = (userId: string, updatedUser: any) => {
-        setSubUsers(subUsers.map(user => 
+        setSubUsers(subUsers.map(user =>
             user.id === userId ? { ...user, ...updatedUser } : user
         ));
+    };
+
+    const handleDeleteUser = (userId: string) => {
+        setSubUsers(subUsers.filter(user => user.id !== userId));
     };
 
     if (loading) {
@@ -404,9 +616,11 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                                 <TableRow key={user.id}>
                                                     <TableCell className="font-medium">{user.name}</TableCell>
                                                     <TableCell className="font-mono text-xs text-muted-foreground">{user.address}</TableCell>
-                                                    <TableCell>{user.allocation}</TableCell>
+                                                    <TableCell>
+                                                        <span className="font-mono">{user.amount} {user.currency}</span>
+                                                    </TableCell>
                                                     <TableCell className="text-right">
-                                                        <EditUserModal user={user} onEditUser={handleEditUser} />
+                                                        <EditUserModal user={user} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} />
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -510,12 +724,8 @@ IF (wallet.cro > 10000) {
                             <div className="space-y-2">
                                 <BatchPaymentModal subUsersCount={subUsers.length} />
                                 <div className="grid grid-cols-2 gap-2">
-                                    <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
-                                        Deposit
-                                    </Button>
-                                    <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
-                                        <Key className="mr-2 h-3 w-3" /> Keys
-                                    </Button>
+                                    <DepositModal />
+                                    <KeysModal agent={agent} />
                                 </div>
                             </div>
                         </CardContent>

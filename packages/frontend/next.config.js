@@ -8,9 +8,9 @@ const nextConfig = {
     },
     env: {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-        NEXT_PUBLIC_CRONOS_CHAIN_ID: '25',
-        NEXT_PUBLIC_CRONOS_RPC_URL: 'https://evm.cronos.org',
-        NEXT_PUBLIC_CRONOS_EXPLORER: 'https://cronos.org/explorer',
+        NEXT_PUBLIC_CRONOS_CHAIN_ID: '338',
+        NEXT_PUBLIC_CRONOS_RPC_URL: 'https://evm-t3.cronos.org',
+        NEXT_PUBLIC_CRONOS_EXPLORER: 'https://cronos.org/explorer/testnet3',
     },
 };
 

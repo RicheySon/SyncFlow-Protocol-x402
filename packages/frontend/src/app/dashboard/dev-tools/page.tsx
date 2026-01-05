@@ -23,7 +23,7 @@ const sdkInstallCode = `npm install @syncflow/sdk ethers`;
 const initCode = `import { SyncFlowClient, ChainId } from '@syncflow/sdk';
 
 const client = new SyncFlowClient({
-  chainId: ChainId.CRONOS_MAINNET,
+  chainId: ChainId.CRONOS_TESTNET,
   apiKey: process.env.SYNCFLOW_API_KEY
 });
 
