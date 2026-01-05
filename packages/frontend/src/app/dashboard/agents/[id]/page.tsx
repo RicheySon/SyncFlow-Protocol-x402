@@ -211,6 +211,77 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
     );
 }
 
+function EditUserModal({ user, onEditUser }: { user: any; onEditUser: (userId: string, updatedUser: any) => void }) {
+    const [open, setOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        name: user.name,
+        address: user.address,
+        allocation: user.allocation.replace('%', '')
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onEditUser(user.id, {
+            ...formData,
+            allocation: formData.allocation.includes('%') ? formData.allocation : `${formData.allocation}%`
+        });
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="sm">Edit</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Edit Recipient</DialogTitle>
+                    <DialogDescription>
+                        Update recipient information.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-name">Name</Label>
+                            <Input
+                                id="edit-name"
+                                placeholder="e.g. Alice (Dev)"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-address">Wallet Address</Label>
+                            <Input
+                                id="edit-address"
+                                placeholder="0x..."
+                                value={formData.address}
+                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit-allocation">Allocation (%)</Label>
+                            <Input
+                                id="edit-allocation"
+                                placeholder="e.g. 20"
+                                value={formData.allocation}
+                                onChange={(e) => setFormData({ ...formData, allocation: e.target.value })}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AgentDetailPage({ params }: { params: { id: string } }) {
     const [agent, setAgent] = useState<Agent | null>(null);
     const [subUsers, setSubUsers] = useState<any[]>([]); // Initialize empty
@@ -238,6 +309,12 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
 
     const handleAddUser = (user: any) => {
         setSubUsers([...subUsers, user]);
+    };
+
+    const handleEditUser = (userId: string, updatedUser: any) => {
+        setSubUsers(subUsers.map(user => 
+            user.id === userId ? { ...user, ...updatedUser } : user
+        ));
     };
 
     if (loading) {
@@ -329,7 +406,7 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                                     <TableCell className="font-mono text-xs text-muted-foreground">{user.address}</TableCell>
                                                     <TableCell>{user.allocation}</TableCell>
                                                     <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm">Edit</Button>
+                                                        <EditUserModal user={user} onEditUser={handleEditUser} />
                                                     </TableCell>
                                                 </TableRow>
                                             ))
