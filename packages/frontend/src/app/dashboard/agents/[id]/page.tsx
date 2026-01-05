@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft,
@@ -32,42 +32,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { agentsApi, type Agent } from '@/lib/api/agents';
 
-// Mock Data
-const agentData = {
-    id: '1',
-    name: 'Treasury Bot Alpha',
-    type: 'DAO Manager',
-    status: 'active',
-    created: '2025-01-15',
-    wallet: {
-        address: '0x71C...9A23',
-        cro: '4,500.50',
-        usdc: '12,450.00',
-    },
-    mcpServers: [
-        { name: 'Portfolio Server', status: 'connected', lastSync: '10s ago' },
-        { name: 'Market Data Bridge', status: 'connected', lastSync: '12s ago' },
-        { name: 'Cronos Indexer', status: 'connected', lastSync: '5s ago' },
-    ],
-    transactions: [
-        { id: 1, type: 'Rebalance', amount: '$450.00', status: 'success', time: '10 mins ago' },
-        { id: 2, type: 'Batch Payment', amount: '$1,200.00', status: 'success', time: '2 hours ago' },
-        { id: 3, type: 'Swap', amount: '$300.00', status: 'success', time: '5 hours ago' },
-    ],
-    metrics: {
-        uptime: 99.9,
-        successRate: 98.5,
-        dailyVolume: '35%',
-    },
-    subUsers: [
-        { id: 'u1', name: 'Alice (Dev)', address: '0x123...abc', allocation: '20%' },
-        { id: 'u2', name: 'Bob (Design)', address: '0x456...def', allocation: '15%' },
-        { id: 'u3', name: 'Charlie (Marketing)', address: '0x789...ghi', allocation: '10%' },
-    ]
-};
+// Mock transactions and other data not yet in API can remain as placeholders or empty for now
+const mockTransactions: any[] = [];
+const mockMcpServers: any[] = [];
 
-function BatchPaymentModal() {
+// BatchPaymentModal component remains the same
+function BatchPaymentModal({ subUsersCount }: { subUsersCount: number }) {
     const [step, setStep] = useState(0);
     const [processing, setProcessing] = useState(false);
 
@@ -144,7 +116,7 @@ function BatchPaymentModal() {
                             </div>
                         ) : (
                             <div className="text-slate-400 text-sm">
-                                Ready to distribute funds to {agentData.subUsers.length} recipients.
+                                Ready to distribute funds to {subUsersCount} recipients.
                             </div>
                         )}
                     </div>
@@ -164,8 +136,128 @@ function BatchPaymentModal() {
     );
 }
 
+function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
+    const [open, setOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        address: '',
+        allocation: ''
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onAddUser({
+            id: Date.now().toString(),
+            ...formData,
+            allocation: formData.allocation.includes('%') ? formData.allocation : `${formData.allocation}%`
+        });
+        setFormData({ name: '', address: '', allocation: '' });
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="secondary">
+                    <UserPlus className="mr-2 h-4 w-4" /> Add User
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Add Recipient</DialogTitle>
+                    <DialogDescription>
+                        Add a new user to the distribution list.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input
+                                id="name"
+                                placeholder="e.g. Alice (Dev)"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="address">Wallet Address</Label>
+                            <Input
+                                id="address"
+                                placeholder="0x..."
+                                value={formData.address}
+                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="allocation">Allocation (%)</Label>
+                            <Input
+                                id="allocation"
+                                placeholder="e.g. 20"
+                                value={formData.allocation}
+                                onChange={(e) => setFormData({ ...formData, allocation: e.target.value })}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit">Add Recipient</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AgentDetailPage({ params }: { params: { id: string } }) {
-    const [subUsers, setSubUsers] = useState(agentData.subUsers);
+    const [agent, setAgent] = useState<Agent | null>(null);
+    const [subUsers, setSubUsers] = useState<any[]>([]); // Initialize empty
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchAgent = async () => {
+            try {
+                setLoading(true);
+                const data = await agentsApi.getById(params.id);
+                setAgent(data);
+                // Future: fetch subUsers here if API supports it
+            } catch (err: any) {
+                setError(err.message || 'Failed to load agent');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (params.id) {
+            fetchAgent();
+        }
+    }, [params.id]);
+
+    const handleAddUser = (user: any) => {
+        setSubUsers([...subUsers, user]);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <p className="text-muted-foreground">Loading agent details...</p>
+            </div>
+        );
+    }
+
+    if (error || !agent) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <p className="text-destructive">{error || 'Agent not found'}</p>
+                <Button asChild>
+                    <Link href="/dashboard/agents">Back to Agents</Link>
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -178,13 +270,15 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                 </Button>
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
-                        {agentData.name}
-                        <Badge variant="default" className="ml-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">Active</Badge>
+                        {agent.name}
+                        <Badge variant="default" className="ml-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">
+                            {agent.status}
+                        </Badge>
                     </h1>
                     <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <span className="font-mono text-xs text-slate-500">{agentData.id}</span>
+                        <span className="font-mono text-xs text-slate-500">{agent.id}</span>
                         <span className="text-slate-600">•</span>
-                        <Badge variant="outline" className="text-xs bg-slate-900 border-slate-800">{agentData.type}</Badge>
+                        <Badge variant="outline" className="text-xs bg-slate-900 border-slate-800 capitalize">{agent.type}</Badge>
                     </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
@@ -206,9 +300,7 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                     <Users className="h-5 w-5 text-indigo-400" />
                                     <CardTitle>Sub Users & Recipients</CardTitle>
                                 </div>
-                                <Button size="sm" variant="secondary">
-                                    <UserPlus className="mr-2 h-4 w-4" /> Add User
-                                </Button>
+                                <AddUserModal onAddUser={handleAddUser} />
                             </div>
                             <CardDescription>Manage recipients for this entity's distributions.</CardDescription>
                         </CardHeader>
@@ -224,16 +316,24 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {subUsers.map((user) => (
-                                            <TableRow key={user.id}>
-                                                <TableCell className="font-medium">{user.name}</TableCell>
-                                                <TableCell className="font-mono text-xs text-muted-foreground">{user.address}</TableCell>
-                                                <TableCell>{user.allocation}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm">Edit</Button>
+                                        {subUsers.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                    No recipients added yet.
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            subUsers.map((user) => (
+                                                <TableRow key={user.id}>
+                                                    <TableCell className="font-medium">{user.name}</TableCell>
+                                                    <TableCell className="font-mono text-xs text-muted-foreground">{user.address}</TableCell>
+                                                    <TableCell>{user.allocation}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button variant="ghost" size="sm">Edit</Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -302,7 +402,7 @@ IF (wallet.cro > 10000) {
                             </div>
                             <div className="mt-4">
                                 <p className="text-xs text-slate-400">Total Balance</p>
-                                <h2 className="text-3xl font-bold font-mono tracking-tight">$16,950.50</h2>
+                                <h2 className="text-3xl font-bold font-mono tracking-tight">$0.00</h2>
                                 <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
                                     <ShieldCheck className="h-3 w-3" /> Protected by x402
                                 </p>
@@ -315,21 +415,23 @@ IF (wallet.cro > 10000) {
                                         <span className="text-xs text-slate-400">Smart Address</span>
                                         <Copy className="h-3 w-3 text-slate-500 cursor-pointer hover:text-white" />
                                     </div>
-                                    <p className="font-mono text-xs truncate text-slate-300">{agentData.wallet.address}</p>
+                                    <p className="font-mono text-xs truncate text-slate-300">
+                                        {agent.walletAddress || 'Not Deployed'}
+                                    </p>
                                 </div>
 
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-slate-400">CRO Balance</span>
-                                    <span className="font-mono">{agentData.wallet.cro}</span>
+                                    <span className="font-mono">0.00</span>
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-slate-400">USDC Balance</span>
-                                    <span className="font-mono">{agentData.wallet.usdc}</span>
+                                    <span className="font-mono">0.00</span>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <BatchPaymentModal />
+                                <BatchPaymentModal subUsersCount={subUsers.length} />
                                 <div className="grid grid-cols-2 gap-2">
                                     <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
                                         Deposit
@@ -348,23 +450,29 @@ IF (wallet.cro > 10000) {
                             <CardTitle className="text-base">Activity</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="divide-y">
-                                {agentData.transactions.map((tx) => (
-                                    <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${tx.type.includes('Payment') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
-                                                }`}>
-                                                <Activity className="h-4 w-4" />
+                            {mockTransactions.length === 0 ? (
+                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                    No recent activity.
+                                </div>
+                            ) : (
+                                <div className="divide-y">
+                                    {mockTransactions.map((tx) => (
+                                        <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${tx.type.includes('Payment') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
+                                                    }`}>
+                                                    <Activity className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium">{tx.type}</p>
+                                                    <p className="text-xs text-muted-foreground">{tx.time}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-sm font-medium">{tx.type}</p>
-                                                <p className="text-xs text-muted-foreground">{tx.time}</p>
-                                            </div>
+                                            <span className="text-sm font-medium">{tx.amount}</span>
                                         </div>
-                                        <span className="text-sm font-medium">{tx.amount}</span>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

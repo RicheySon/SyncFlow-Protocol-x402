@@ -157,7 +157,6 @@ export default function AgentsPage() {
                                     <Label htmlFor="baseToken">Base Token</Label>
                                     <Select
                                         value={formData.baseToken}
-                                        defaultValue={formData.baseToken}
                                         onValueChange={(value) =>
                                             setFormData({ ...formData, baseToken: value })
                                         }
@@ -176,7 +175,6 @@ export default function AgentsPage() {
                                     <Label htmlFor="type">Entity Type</Label>
                                     <Select
                                         value={formData.type}
-                                        defaultValue={formData.type}
                                         onValueChange={(value: any) =>
                                             setFormData({ ...formData, type: value })
                                         }
