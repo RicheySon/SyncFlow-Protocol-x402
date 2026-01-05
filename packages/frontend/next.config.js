@@ -12,6 +12,19 @@ const nextConfig = {
         NEXT_PUBLIC_CRONOS_RPC_URL: 'https://evm-t3.cronos.org',
         NEXT_PUBLIC_CRONOS_EXPLORER: 'https://cronos.org/explorer/testnet3',
     },
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Content-Security-Policy',
+                        value: "script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none';",
+                    },
+                ],
+            },
+        ];
+    },
 };
 
 module.exports = nextConfig;

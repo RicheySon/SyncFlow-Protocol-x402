@@ -14,15 +14,17 @@ SyncFlow Protocol is a comprehensive framework for building, deploying, and mana
 - **Entity Management (Smart Wallets)**: Create and manage autonomous agents with dedicated smart wallets and governance controls.
 
 ### Protocol Integrations
-- **VVS Finance**: Live DEX swap quote integration on Cronos
-- **Crypto.com AI Agents**: AI-powered market sentiment and predictions
-- **Moonlander**: Perpetual futures positions (mock)
-- **Delphi**: On-chain prediction markets (mock)
+### Protocol Integrations
+- **SyncFlow Agent**: Batch payment processing
+- **Transaction Monitor**: Global activity tracking
 
 ### Developer Tools
 - **TypeScript SDK**: Easy-to-use client library for building on SyncFlow
-- **Workflow Builder**: Fluent API for creating complex agent workflows
-- **MCP Servers**: Portfolio aggregation, transaction monitoring, protocol indexing, and market data feeds
+- **MCP Servers**: Transaction monitoring and agent data feeds
+
+## Architecture
+
+![Architecture Diagram](/brain/c339cb3a-512f-44c9-8bc5-d829e8fa9861/syncflow_architecture_v3_lean_1767633702741.png)
 
 ## Tech Stack
 
@@ -42,7 +44,7 @@ SyncFlow-Protocol-x402/
 │   ├── backend/           # Express API + Agent logic
 │   ├── sdk/               # TypeScript SDK for developers
 │   ├── mcp-servers/       # MCP protocol servers
-│   └── contracts/         # Smart contracts (future)
+│   └── contracts/         # Smart contracts
 ├── docs/                  # Documentation
 └── README.md
 ```
@@ -78,8 +80,6 @@ npm run dev:frontend
 ### Hackathon Tracks
 
 - [Main Track: Autonomous Agents](./docs/tracks/MAIN_TRACK.md)
-- [Agentic Finance](./docs/tracks/AGENTIC_FINANCE.md)
-- [Ecosystem Integration](./docs/tracks/ECOSYSTEM.md)
 - [Developer Tooling](./docs/tracks/DEV_TOOLING.md)
 
 ## Status

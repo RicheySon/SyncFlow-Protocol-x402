@@ -11,7 +11,7 @@ export const CRONOS_CONFIG = {
 };
 
 export const CONTRACTS = {
-    agentWallet: process.env.NEXT_PUBLIC_CONTRACT_AGENT_WALLET || '0x43EdC3Bf4c0766E2EdFD557C99cE8A89bDAA827A',
+    agentWallet: process.env.NEXT_PUBLIC_CONTRACT_AGENT_WALLET || '0x21E205e2C45417E81d39F28183cA0BA1493ACeee',
     paymentRouter: process.env.NEXT_PUBLIC_CONTRACT_PAYMENT_ROUTER || '',
     conditionalExecutor: process.env.NEXT_PUBLIC_CONTRACT_CONDITIONAL_EXECUTOR || '',
 };

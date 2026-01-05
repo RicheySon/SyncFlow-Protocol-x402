@@ -39,7 +39,11 @@ const mockTransactions: any[] = [];
 const mockMcpServers: any[] = [];
 
 // BatchPaymentModal component remains the same
-function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
+// BatchPaymentModal component
+function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
+    subUsers: any[],
+    onTransactionSuccess?: (txHash: string, amount: number, recipientsCount: number) => void
+}) {
     const [step, setStep] = useState(0);
     const [processing, setProcessing] = useState(false);
     const [walletConnected, setWalletConnected] = useState(false);
@@ -66,38 +70,58 @@ function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
         setTotalAmount(total);
     };
 
-    const connectWallet = async () => {
+    const handleConnectWallet = async () => {
+        setProcessing(true);
+        setErrorMessage(null);
         try {
-            const { connectWallet: connect } = await import('@/lib/wallet');
-            const state = await connect();
+            console.log('Attempting wallet connection...');
+            const { connectWallet } = await import('@/lib/wallet');
+
+            if (!window.ethereum) {
+                throw new Error('MetaMask is not installed. Please install it to continue.');
+            }
+
+            const state = await connectWallet();
+            console.log('Wallet connected:', state);
+
             setWalletConnected(state.isConnected);
             setWalletAddress(state.address);
+
+            // Move to next step if successful
             setStep(1);
+            await validateBalance();
+
         } catch (error: any) {
+            console.error('Connection failed:', error);
             setErrorMessage(error.message || 'Failed to connect wallet');
+            setProcessing(false);
         }
     };
 
     const validateBalance = async () => {
         try {
-            if (!walletAddress) {
-                throw new Error('Wallet not connected');
-            }
-
+            console.log('Starting balance validation...');
+            const { CONTRACTS } = await import('@/lib/config');
             const { getTCROBalance } = await import('@/lib/wallet');
 
-            // Get user's wallet balance (not contract balance)
-            const balance = await getTCROBalance(walletAddress);
-            const balanceNum = parseFloat(balance);
+            // Add timeout protection
+            const balancePromise = getTCROBalance(CONTRACTS.agentWallet);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Balance check timed out after 10s')), 10000)
+            );
 
-            // Need total + estimated gas (0.1 TCRO buffer per transaction)
-            const estimatedGas = subUsers.length * 0.1;
-            const requiredBalance = totalAmount + estimatedGas;
+            // Race balance fetching against timeout
+            const contractBalance = await Promise.race([balancePromise, timeoutPromise]) as string;
+            const balanceNum = parseFloat(contractBalance);
 
-            console.log('Balance check:', { balance: balanceNum, required: requiredBalance });
+            console.log('Contract balance check:', {
+                contract: CONTRACTS.agentWallet,
+                balance: balanceNum,
+                required: totalAmount
+            });
 
-            if (balanceNum < requiredBalance) {
-                throw new Error(`Insufficient balance. Need ${requiredBalance.toFixed(2)} TCRO, have ${balanceNum.toFixed(2)} TCRO`);
+            if (balanceNum < totalAmount) {
+                throw new Error(`Insufficient contract balance. Need ${totalAmount.toFixed(2)} TCRO, have ${balanceNum.toFixed(2)} TCRO`);
             }
 
             // Move to execution step
@@ -112,36 +136,114 @@ function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
             console.error('Balance validation error:', error);
             setErrorMessage(error.message || 'Failed to validate balance');
             setProcessing(false);
-            setStep(0); // Reset to start
+            // setStep(0); // Reset to start
         }
     };
 
     const executeBatchPayments = async () => {
         try {
-            const { sendTCRODeposit } = await import('@/lib/wallet');
-            const hashes: string[] = [];
+            console.log('Starting batch payment execution...');
+            const { ethers } = await import('ethers');
+            const { CONTRACTS } = await import('@/lib/config');
+            const { switchToCronosTestnet } = await import('@/lib/wallet');
 
-            // Filter only TCRO recipients
+            if (!window.ethereum) {
+                throw new Error('MetaMask not installed');
+            }
+
+            // Ensure we are on the correct network
+            await switchToCronosTestnet();
+
+            // Create a Network object for Cronos Testnet and explicitly disable ENS
+            // This prevents "network does not support ENS" errors
+            const network = new ethers.Network("Cronos Testnet", 338);
+            const provider = new ethers.BrowserProvider(window.ethereum, network, {
+                staticNetwork: network
+            });
+
+            const signer = await provider.getSigner();
+            const signerAddress = await signer.getAddress();
+            console.log('Signer:', signerAddress);
+
+            // Validate and format recipients to ensure they are check-summed addresses
             const tcroRecipients = subUsers.filter(user => user.currency === 'TCRO');
 
-            for (const user of tcroRecipients) {
-                try {
-                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'pending' }));
+            if (tcroRecipients.length === 0) {
+                throw new Error('No TCRO recipients found');
+            }
 
-                    const tx = await sendTCRODeposit(user.address, user.amount);
-                    hashes.push(tx.hash);
+            const recipients = [];
+            const amounts = [];
 
-                    // Wait for confirmation
-                    await tx.wait();
+            for (const u of tcroRecipients) {
+                if (!ethers.isAddress(u.address)) {
+                    throw new Error(`Invalid address: ${u.address}`);
+                }
+                recipients.push(u.address);
+                amounts.push(ethers.parseEther(u.amount.toString()));
+            }
 
-                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'success' }));
-                } catch (error) {
-                    console.error(`Failed to send to ${user.address}:`, error);
-                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'error' }));
+            // Log for debugging
+            console.log('Contract:', CONTRACTS.agentWallet);
+            console.log('Recipients:', recipients);
+            console.log('Amounts:', amounts.map(a => ethers.formatEther(a)));
+
+            // Contract ABI for batchTransfer
+            const contractABI = [
+                "function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external",
+                "function owner() view returns (address)"
+            ];
+
+            const contract = new ethers.Contract(CONTRACTS.agentWallet, contractABI, signer);
+
+            // Verify ownership before sending
+            try {
+                const owner = await contract.owner();
+                if (owner.toLowerCase() !== signerAddress.toLowerCase()) {
+                    throw new Error(`Caller is not owner. Owner: ${owner}`);
+                }
+            } catch (err) {
+                console.warn('Could not verify owner, proceeding...', err);
+            }
+
+            // Set all as pending
+            tcroRecipients.forEach(user => {
+                setRecipientStatuses(prev => ({ ...prev, [user.id]: 'pending' }));
+            });
+
+            // Estimate gas first
+            try {
+                await contract.batchTransfer.estimateGas(recipients, amounts);
+            } catch (err: any) {
+                console.error('Gas estimation failed:', err);
+                if (err.message && err.message.includes("Insufficient contract balance")) {
+                    throw new Error("Insufficient contract balance (gas estimation failed)");
                 }
             }
 
-            setTxHashes(hashes);
+            // Execute single contract transaction
+            console.log('Sending transaction...');
+            const tx = await contract.batchTransfer(recipients, amounts);
+            console.log('Transaction submitted:', tx.hash);
+
+            setTxHashes([tx.hash]);
+
+            // Wait for confirmation
+            console.log('Waiting for confirmation...');
+            await tx.wait();
+            console.log('Transaction confirmed!');
+
+            // Set all as success
+            tcroRecipients.forEach(user => {
+                setRecipientStatuses(prev => ({ ...prev, [user.id]: 'success' }));
+            });
+
+            // NEW: Record transaction
+            if (onTransactionSuccess) {
+                const totalEth = amounts.reduce((acc, val) => acc + BigInt(val), 0n);
+                onTransactionSuccess(tx.hash, parseFloat(ethers.formatEther(totalEth)), recipients.length);
+            }
+
             setStep(3);
 
             // Move to complete after brief delay
@@ -151,7 +253,13 @@ function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
             }, 1500);
 
         } catch (error: any) {
-            setErrorMessage(error.message);
+            console.error('Batch payment error:', error);
+            // Parse error message for common issues
+            let msg = error.message || 'Batch transfer failed';
+            if (msg.includes("user rejected")) msg = "Transaction rejected by user";
+            if (msg.includes("Insufficient contract balance")) msg = "Contract has insufficient TCRO";
+
+            setErrorMessage(msg);
             setProcessing(false);
         }
     };
@@ -163,9 +271,10 @@ function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
         setRecipientStatuses({});
         calculateTotal();
 
+        // If not connected, stop and let user click 'Connect'
         if (!walletConnected) {
             setStep(0);
-            await connectWallet();
+            await handleConnectWallet();
         } else {
             setStep(1);
             await validateBalance();
@@ -299,13 +408,47 @@ function BatchPaymentModal({ subUsers }: { subUsers: any[] }) {
                 </div>
 
                 <DialogFooter>
-                    <Button
-                        onClick={isCompleted ? handleClose : runBatchPayment}
-                        disabled={processing || tcroRecipients.length === 0}
-                        className={isCompleted ? "bg-slate-700 hover:bg-slate-600" : "bg-emerald-500 hover:bg-emerald-600"}
-                    >
-                        {processing ? 'Processing...' : (isCompleted ? 'Close' : 'Execute Batch')}
-                    </Button>
+                    {step === 0 && (
+                        <Button
+                            onClick={handleConnectWallet}
+                            disabled={processing}
+                            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+                        >
+                            {processing ? 'Connecting...' : 'Connect Wallet'}
+                        </Button>
+                    )}
+
+                    {step === 1 && (
+                        <Button disabled className="bg-slate-700 w-full sm:w-auto">
+                            <Activity className="mr-2 h-4 w-4 animate-spin" /> Validating Balance...
+                        </Button>
+                    )}
+
+                    {step === 2 && (
+                        <Button
+                            onClick={executeBatchPayments}
+                            disabled={processing}
+                            className="bg-emerald-500 hover:bg-emerald-600 w-full sm:w-auto"
+                        >
+                            <Zap className="mr-2 h-4 w-4" />
+                            {processing ? 'Processing...' : 'Confirm Execution'}
+                        </Button>
+                    )}
+
+                    {step === 3 && (
+                        <Button disabled className="bg-emerald-600/50 w-full sm:w-auto">
+                            <ShieldCheck className="mr-2 h-4 w-4" /> Confirming...
+                        </Button>
+                    )}
+
+                    {step === 4 && (
+                        <Button
+                            onClick={handleClose}
+                            className="bg-slate-700 hover:bg-slate-600 w-full sm:w-auto"
+                        >
+                            Close
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -840,18 +983,82 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
         }
     }, [agent]);
 
-    const handleAddUser = (user: any) => {
-        setSubUsers([...subUsers, user]);
+    // NEW: Load sub-users from localStorage on mount
+    useEffect(() => {
+        const storedUsers = localStorage.getItem(`syncflow_subusers_${params.id}`);
+        if (storedUsers) {
+            try {
+                setSubUsers(JSON.parse(storedUsers));
+            } catch (e) {
+                console.error('Failed to parse stored users', e);
+            }
+        }
+    }, [params.id]);
+
+    // NEW: Save sub-users to localStorage whenever they change
+    useEffect(() => {
+        if (subUsers.length > 0) { // Only save if we have users (or overwrite if empty if that's desired behavior)
+            localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(subUsers));
+        } else {
+            // Optional: Clear if empty, or keep empty array
+            // localStorage.removeItem(`syncflow_subusers_${params.id}`);
+        }
+    }, [subUsers, params.id]);
+
+    const handleAddUser = (userData: any) => {
+        const newUser = {
+            id: crypto.randomUUID(),
+            ...userData,
+            status: 'active'
+        };
+        const updatedUsers = [...subUsers, newUser];
+        setSubUsers(updatedUsers);
+        // Direct save to ensure immediate persistence
+        localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(updatedUsers));
     };
 
-    const handleEditUser = (userId: string, updatedUser: any) => {
-        setSubUsers(subUsers.map(user =>
-            user.id === userId ? { ...user, ...updatedUser } : user
-        ));
+    const handleEditUser = (userId: string, updates: any) => {
+        const updatedUsers = subUsers.map(user =>
+            user.id === userId ? { ...user, ...updates } : user
+        );
+        setSubUsers(updatedUsers);
+        localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(updatedUsers));
     };
 
     const handleDeleteUser = (userId: string) => {
-        setSubUsers(subUsers.filter(user => user.id !== userId));
+        const updatedUsers = subUsers.filter(user => user.id !== userId);
+        setSubUsers(updatedUsers);
+        localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(updatedUsers));
+    };
+
+    // Transaction state
+    const [transactions, setTransactions] = useState<any[]>([]);
+
+    // NEW: Load transactions from localStorage
+    useEffect(() => {
+        const storedTxs = localStorage.getItem(`syncflow_transactions_${params.id}`);
+        if (storedTxs) {
+            try {
+                setTransactions(JSON.parse(storedTxs));
+            } catch (e) {
+                console.error('Failed to parse stored transactions', e);
+            }
+        }
+    }, [params.id]);
+
+    // NEW: Function to add transaction
+    const addTransaction = (txHash: string, amount: number, recipientsCount: number) => {
+        const newTx = {
+            id: txHash,
+            type: 'Batch Payment',
+            status: 'Success',
+            amount: `${amount.toFixed(2)} TCRO`,
+            date: new Date().toISOString(), // Store actual date
+            recipients: recipientsCount
+        };
+        const updatedTxs = [newTx, ...transactions];
+        setTransactions(updatedTxs);
+        localStorage.setItem(`syncflow_transactions_${params.id}`, JSON.stringify(updatedTxs));
     };
 
     if (loading) {
@@ -932,7 +1139,7 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                     <TableBody>
                                         {subUsers.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                                                     No recipients added yet.
                                                 </TableCell>
                                             </TableRow>
@@ -940,12 +1147,22 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                             subUsers.map((user) => (
                                                 <TableRow key={user.id}>
                                                     <TableCell className="font-medium">{user.name}</TableCell>
-                                                    <TableCell className="font-mono text-xs text-muted-foreground">{user.address}</TableCell>
-                                                    <TableCell>
-                                                        <span className="font-mono">{user.amount} {user.currency}</span>
+                                                    <TableCell className="font-mono text-xs text-muted-foreground">
+                                                        {user.address.substring(0, 6)}...{user.address.substring(user.address.length - 4)}
                                                     </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <EditUserModal user={user} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} />
+                                                    <TableCell>
+                                                        {user.amount} {user.currency}
+                                                    </TableCell>
+                                                    <TableCell className="text-right space-x-2">
+                                                        <EditUserModal user={user} onEditUser={handleEditUser} />
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                                            onClick={() => handleDeleteUser(user.id)}
+                                                        >
+                                                            <div className="h-4 w-4">×</div>
+                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -956,111 +1173,49 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                         </CardContent>
                     </Card>
 
-                    {/* Logic / Instructions */}
+                    {/* Logic Section */}
                     <Card>
                         <CardHeader>
                             <div className="flex items-center gap-2">
-                                <Activity className="h-5 w-5 text-secondary" />
+                                <Activity className="h-5 w-5 text-blue-400" />
                                 <CardTitle>Entity Logic</CardTitle>
                             </div>
                             <CardDescription>Define the conditional logic for this entity.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-50">
+                            <div className="relative">
+                                <div className="absolute top-2 right-2 flex gap-2">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <Save className="h-4 w-4" />
+                                    </Button>
+                                </div>
                                 <Textarea
-                                    className="min-h-[200px] border-none bg-transparent p-0 focus-visible:ring-0 text-slate-50 font-mono"
+                                    className="font-mono text-sm min-h-[200px] bg-slate-950 border-slate-800 resize-y"
                                     defaultValue={`// Weekly Payroll Logic
 IF (date.day === 'FRIDAY') {
   EXECUTE batchPayment(subUsers, {
     currency: 'eUSDC',
     total_amount: 5000
   });
-}
-
-// Auto-Swap
-IF (wallet.cro > 10000) {
-  EXECUTE swap('CRO', 'USDC', 5000);
 }`}
                                 />
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Configuration */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Advanced Settings</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between rounded-lg border p-3">
-                                <div className="space-y-0.5">
-                                    <Label>Auto-Execution</Label>
-                                    <p className="text-xs text-muted-foreground">Allow autonomous transaction signing</p>
-                                </div>
-                                <Switch defaultChecked />
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
 
-                {/* Right Column (Wallet & Metrics) */}
+                {/* Right Column (Wallet Info & Actions) */}
                 <div className="md:col-span-4 space-y-6">
-                    {/* Wallet Card */}
-                    <Card className="bg-gradient-to-br from-slate-900 to-slate-950 text-white border-slate-800">
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2">
-                                    <Wallet className="h-5 w-5" /> Wallet Info
-                                </CardTitle>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-white">
-                                    <RefreshCw className="h-3 w-3" />
-                                </Button>
-                            </div>
-                            <div className="mt-4">
-                                <p className="text-xs text-slate-400">Total Balance</p>
-                                <h2 className="text-3xl font-bold font-mono tracking-tight">$0.00</h2>
-                                <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                                    <ShieldCheck className="h-3 w-3" /> Protected by x402
-                                </p>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-3">
-                                <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs text-slate-400">Smart Address</span>
-                                        <Copy className="h-3 w-3 text-slate-500 cursor-pointer hover:text-white" />
-                                    </div>
-                                    <p className="font-mono text-xs truncate text-slate-300">
-                                        {agent.walletAddress || 'Not Deployed'}
-                                    </p>
-                                </div>
-
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-400">TCRO Balance</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-mono">{balanceLoading ? '...' : tcroBalance}</span>
-                                        <RefreshCw
-                                            className={`h-3 w-3 text-slate-500 cursor-pointer hover:text-white ${balanceLoading ? 'animate-spin' : ''}`}
-                                            onClick={fetchBalance}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-400">USDC Balance</span>
-                                    <span className="font-mono">0.00</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <BatchPaymentModal subUsers={subUsers} />
-                                <div className="grid grid-cols-2 gap-2">
-                                    <DepositModal />
-                                    <KeysModal agent={agent} />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <WalletInfo
+                        balance={tcroBalance}
+                        address={agent.address}
+                        subUsers={subUsers}
+                        onTransactionSuccess={addTransaction}
+                    />
 
                     {/* Recent Transactions */}
                     <Card>
@@ -1068,13 +1223,13 @@ IF (wallet.cro > 10000) {
                             <CardTitle className="text-base">Activity</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            {mockTransactions.length === 0 ? (
+                            {transactions.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-muted-foreground">
                                     No recent activity.
                                 </div>
                             ) : (
                                 <div className="divide-y">
-                                    {mockTransactions.map((tx) => (
+                                    {transactions.map((tx) => (
                                         <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className={`h-8 w-8 rounded-full flex items-center justify-center ${tx.type.includes('Payment') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
@@ -1092,9 +1247,102 @@ IF (wallet.cro > 10000) {
                                 </div>
                             )}
                         </CardContent>
-                    </Card>
+                    </Card >
+                </div >
+            </div >
+        </div >
+    );
+}
+
+function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
+    balance: string,
+    address: string,
+    subUsers: any[],
+    onTransactionSuccess: (txHash: string, amount: number, recipientsCount: number) => void
+}) {
+    const [tcroBalance, setTcroBalance] = useState('0.00');
+    const [usdcBalance, setUsdcBalance] = useState('0.00');
+
+    useEffect(() => {
+        let mounted = true;
+        const fetchBalances = async () => {
+            try {
+                const { CONTRACTS } = await import('@/lib/config');
+                const { getTCROBalance } = await import('@/lib/wallet');
+                const bal = await getTCROBalance(CONTRACTS.agentWallet);
+                if (mounted) {
+                    setTcroBalance(parseFloat(bal).toFixed(2));
+                }
+            } catch (e) {
+                console.error("Failed to fetch balance", e);
+            }
+        };
+
+        fetchBalances();
+        // Poll every 30s
+        const interval = setInterval(fetchBalances, 30000);
+        return () => {
+            mounted = false;
+            clearInterval(interval);
+        };
+    }, []);
+
+    return (
+        <Card className="bg-slate-950 border-slate-800">
+            <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5 text-emerald-400" />
+                        <CardTitle>Wallet Info</CardTitle>
+                    </div>
+                    <RefreshCw className="h-3 w-3 text-slate-500" />
                 </div>
-            </div>
-        </div>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-6">
+                    <div>
+                        <p className="text-sm text-slate-400">Total Balance</p>
+                        <h2 className="text-3xl font-bold mt-1">$0.00</h2>
+                        <div className="flex items-center gap-1 mt-1 text-xs text-emerald-500">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>Protected by x402</span>
+                        </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-900 rounded-lg space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-400">Smart Address</span>
+                            <Copy className="h-3 w-3 text-slate-500 cursor-pointer" />
+                        </div>
+                        <p className="font-mono text-xs text-slate-300 break-all">
+                            {address}
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">TCRO Balance</span>
+                            <span className="font-mono">{tcroBalance}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">USDC Balance</span>
+                            <span className="font-mono">{usdcBalance}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2">
+                            <BatchPaymentModal subUsers={subUsers} onTransactionSuccess={onTransactionSuccess} />
+                        </div>
+                        <Button variant="outline" className="w-full border-slate-700 hover:bg-slate-800">
+                            Deposit
+                        </Button>
+                        <Button variant="outline" className="w-full border-slate-700 hover:bg-slate-800">
+                            <Key className="mr-2 h-3 w-3" /> Keys
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }

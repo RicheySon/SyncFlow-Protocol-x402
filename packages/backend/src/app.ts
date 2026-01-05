@@ -8,7 +8,7 @@ import { rateLimiter } from './middlewares/rateLimit.middleware';
 
 import { authRoutes } from './routes/auth.routes';
 import { agentsRoutes } from './routes/agents.routes';
-import { workflowsRoutes } from './routes/workflows.routes';
+
 import { transactionsRoutes } from './routes/transactions.routes';
 import devToolsRoutes from './routes/devtools.routes';
 
@@ -24,7 +24,7 @@ app.use(rateLimiter);
 // Routes
 app.use('/auth', authRoutes);
 app.use('/agents', agentsRoutes);
-app.use('/workflows', workflowsRoutes);
+
 app.use('/transactions', transactionsRoutes);
 app.use('/devtools', devToolsRoutes);
 

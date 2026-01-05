@@ -1,18 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
+    Activity,
     ArrowUpRight,
     ArrowDownLeft,
     Search,
     Filter,
     Download,
-    ExternalLink,
     RefreshCw,
-    Wallet
+    ExternalLink,
+    Copy,
+    Wallet,
+    Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -20,41 +26,84 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { transactionsApi, type Transaction } from '@/lib/api/transactions';
 
 export default function TransactionsPage() {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState('all');
+    const [search, setSearch] = useState('');
+    const [copiedId, setCopiedId] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchTransactions();
-    }, [filter]);
+    const handleCopy = (text: string, id: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
 
-    const fetchTransactions = async () => {
+    // Load transactions from all agents
+    const loadTransactions = () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const data = await transactionsApi.getAll(
-                filter !== 'all' ? { type: filter } : undefined
-            );
-            setTransactions(data);
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch transactions');
+            const allTxs: any[] = [];
+
+            // 1. Scan localStorage for SyncFlow transactions
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                // Check if key is a transaction record
+                if (key && key.startsWith('syncflow_transactions_')) {
+                    const agentId = key.replace('syncflow_transactions_', '');
+                    try {
+                        const txs = JSON.parse(localStorage.getItem(key) || '[]');
+
+                        // Add agentId to each transaction for context
+                        const taggedTxs = txs.map((tx: any) => ({
+                            ...tx,
+                            agentId: agentId,
+                            // Ensure date is parseable or fallback to now
+                            date: tx.date || new Date().toISOString(),
+                            // normalize structure if needed
+                            txHash: tx.id || tx.txHash,
+                            amount: tx.amount || '0',
+                            type: tx.type || 'Unknown'
+                        }));
+                        allTxs.push(...taggedTxs);
+                    } catch (err) {
+                        console.warn('Failed to parse transactions for key:', key);
+                    }
+                }
+            }
+
+            // 2. Sort by date descending (newest first)
+            allTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            setTransactions(allTxs);
+        } catch (e) {
+            console.error("Failed to load transactions", e);
         } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        loadTransactions();
+
+        // Listen for storage events (updates from other tabs)
+        window.addEventListener('storage', loadTransactions);
+        return () => window.removeEventListener('storage', loadTransactions);
+    }, []);
+
+    const handleRefresh = () => {
+        loadTransactions();
+    };
+
+    // Filter transactions
+    const filteredTransactions = transactions.filter(tx => {
+        const matchesFilter = filter === 'all' || (tx.type && tx.type.toLowerCase().includes(filter.toLowerCase()));
+        const matchesSearch = search === '' ||
+            (tx.txHash && tx.txHash.toLowerCase().includes(search.toLowerCase())) ||
+            (tx.agentId && tx.agentId.toLowerCase().includes(search.toLowerCase()));
+        return matchesFilter && matchesSearch;
+    });
 
     return (
         <div className="space-y-6">
@@ -69,115 +118,117 @@ export default function TransactionsPage() {
                     <Button variant="outline">
                         <Download className="mr-2 h-4 w-4" /> Export CSV
                     </Button>
-                    <Button variant="outline" onClick={fetchTransactions} disabled={loading}>
+                    <Button variant="outline" onClick={handleRefresh}>
                         <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
                     </Button>
                 </div>
             </div>
 
-            <Card>
+            <Card className="bg-slate-950 border-slate-800">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle>History</CardTitle>
-                        <div className="flex items-center gap-2">
-                            <div className="relative w-[250px]">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input placeholder="Search tx hash or agent..." className="pl-9" />
+                        <div className="flex gap-2">
+                            <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search tx hash or agent..."
+                                    className="pl-8 w-[300px] bg-slate-900 border-slate-800"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
                             </div>
                             <Select value={filter} onValueChange={setFilter}>
-                                <SelectTrigger className="w-[150px]">
+                                <SelectTrigger className="w-[150px] bg-slate-900 border-slate-800">
                                     <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <SelectValue placeholder="Filter type" />
+                                    <SelectValue placeholder="All Types" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Types</SelectItem>
                                     <SelectItem value="payment">Payments</SelectItem>
                                     <SelectItem value="swap">Swaps</SelectItem>
-                                    <SelectItem value="rebalance">Rebalance</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {loading && transactions.length === 0 ? (
-                        <div className="flex justify-center py-8 text-muted-foreground">Loading transactions...</div>
-                    ) : error ? (
-                        <div className="flex justify-center py-8 text-destructive">{error}</div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Transaction Hash</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Agent</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Time</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {transactions.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                            No transactions found
-                                        </TableCell>
-                                    </TableRow>
+                    <div className="relative overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
+                                <tr>
+                                    <th className="px-4 py-3">Transaction Hash</th>
+                                    <th className="px-4 py-3">Type</th>
+                                    <th className="px-4 py-3">Agent ID</th>
+                                    <th className="px-4 py-3">Amount</th>
+                                    <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3 text-right">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredTransactions.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                                            {loading ? 'Loading history...' : 'No transactions found'}
+                                        </td>
+                                    </tr>
                                 ) : (
-                                    transactions.map((tx) => (
-                                        <TableRow key={tx.id}>
-                                            <TableCell className="font-mono text-xs">
+                                    filteredTransactions.map((tx, i) => (
+                                        <tr key={i} className="border-b border-slate-800 hover:bg-slate-900/50">
+                                            <td className="px-4 py-4 font-mono text-xs text-slate-300">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-primary hover:underline cursor-pointer">
-                                                        {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
-                                                    </span>
-                                                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                                    <a
+                                                        href={`https://cronos.org/explorer/testnet3/tx/${tx.txHash}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="hover:text-blue-400 hover:underline flex items-center gap-1"
+                                                    >
+                                                        {tx.txHash ? `${tx.txHash.substring(0, 10)}...${tx.txHash.substring(tx.txHash.length - 8)}` : 'N/A'}
+                                                        <ExternalLink className="h-3 w-3" />
+                                                    </a>
+                                                    <button
+                                                        onClick={() => handleCopy(tx.txHash, i.toString())}
+                                                        className="hover:text-slate-100 transition-colors p-1"
+                                                        title="Copy Transaction Hash"
+                                                    >
+                                                        {copiedId === i.toString() ? (
+                                                            <Check className="h-3 w-3 text-emerald-500" />
+                                                        ) : (
+                                                            <Copy className="h-3 w-3 text-slate-600 hover:text-slate-400" />
+                                                        )}
+                                                    </button>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <div className={cn(
-                                                        "p-1 rounded-full",
-                                                        tx.type === 'Deposit' ? "bg-green-500/10 text-green-500" :
-                                                            tx.type === 'Payment' ? "bg-blue-500/10 text-blue-500" :
-                                                                "bg-orange-500/10 text-orange-500"
-                                                    )}>
-                                                        {tx.type === 'Deposit' ? <ArrowDownLeft className="h-3 w-3" /> :
-                                                            tx.type === 'Payment' ? <ArrowUpRight className="h-3 w-3" /> :
-                                                                <RefreshCw className="h-3 w-3" />}
-                                                    </div>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <Badge variant="outline" className={`border-emerald-500/20 ${tx.type.includes('Payment') ? 'bg-emerald-500/10 text-emerald-500' :
+                                                        'bg-blue-500/10 text-blue-500'
+                                                    }`}>
                                                     {tx.type}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{tx.agent?.name || 'Unknown Agent'}</TableCell>
-                                            <TableCell>
-                                                <span className="font-medium">{tx.amount}</span>
-                                                <span className="text-xs text-muted-foreground ml-1">{tx.token}</span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={
-                                                    tx.status === 'success' ? 'default' :
-                                                        tx.status === 'pending' ? 'secondary' :
-                                                            'destructive'
-                                                } className="capitalize">
-                                                    {tx.status}
                                                 </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right text-muted-foreground text-sm">
-                                                {new Date(tx.createdAt).toLocaleString()}
-                                            </TableCell>
-                                        </TableRow>
+                                            </td>
+                                            <td className="px-4 py-4 text-slate-400 font-mono text-xs">
+                                                {tx.agentId ? tx.agentId.substring(0, 8) : 'Unknown'}
+                                            </td>
+                                            <td className="px-4 py-4 font-medium text-slate-200">
+                                                {tx.amount}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="flex items-center gap-2 text-emerald-500 text-xs">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                    Success
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 text-right text-slate-400">
+                                                {new Date(tx.date).toLocaleString()}
+                                            </td>
+                                        </tr>
                                     ))
                                 )}
-                            </TableBody>
-                        </Table>
-                    )}
+                            </tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
         </div>
     );
-}
-
-function cn(...classes: (string | undefined)[]) {
-    return classes.filter(Boolean).join(' ');
 }
