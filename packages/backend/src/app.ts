@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth.routes';
 import { agentsRoutes } from './routes/agents.routes';
 
 import { transactionsRoutes } from './routes/transactions.routes';
+import { chatRoutes } from './routes/chat.routes';
 import devToolsRoutes from './routes/devtools.routes';
 
 const app = express();
@@ -26,6 +27,7 @@ app.use('/auth', authRoutes);
 app.use('/agents', agentsRoutes);
 
 app.use('/transactions', transactionsRoutes);
+app.use('/chat', chatRoutes);
 app.use('/devtools', devToolsRoutes);
 
 // Health Check Endpoint

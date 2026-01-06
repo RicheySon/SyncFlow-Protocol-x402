@@ -12,6 +12,7 @@ import {
     BookOpen,
     User,
     LogOut,
+    MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import { authApi } from '@/lib/api/auth';
 const navigation = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Agents', href: '/dashboard/agents', icon: Bot },
+    { name: 'AI Chat', href: '/dashboard/chat', icon: MessageSquare },
     { name: 'Transactions', href: '/dashboard/transactions', icon: Receipt },
     { name: 'Dev Tools', href: '/dashboard/dev-tools', icon: Wrench },
     { name: 'Documentation', href: '/docs', icon: BookOpen },

@@ -12,7 +12,11 @@ const envSchema = z.object({
     JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
     CRONOS_RPC_URL: z.string().url().default('https://evm-t3.cronos.org'),
     CRONOS_CHAIN_ID: z.string().default('338'),
+    CDC_DASHBOARD_API_KEY: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+    CDC_PROVIDER_URL: z.string().optional(),
 });
+
 
 const parseEnv = () => {
     const parsed = envSchema.safeParse(process.env);
