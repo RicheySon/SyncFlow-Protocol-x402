@@ -52,7 +52,16 @@ export class CdcAgentService {
      * Get AI interpretation using available provider
      */
     private async getAIResponse(message: string): Promise<string> {
-        const systemPrompt = `You are a helpful blockchain assistant for the Cronos network. 
+        const currentDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const systemPrompt = `You are a helpful blockchain assistant for the Cronos network.
+Current Date: ${currentDate}
+
 You can help users:
 - Get the latest block information
 - Check wallet balances (provide an address)
