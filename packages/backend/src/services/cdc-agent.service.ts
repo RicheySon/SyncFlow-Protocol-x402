@@ -1,13 +1,16 @@
 import { Client, Wallet, Transaction, Block } from '@crypto.com/developer-platform-client';
 import { env } from '../config/env.js';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * SyncFlow AI Agent Service
- * Uses Crypto.com Developer Platform Client + OpenAI for natural language blockchain queries
+ * Uses Crypto.com Developer Platform Client + AI (Gemini/OpenAI) for natural language blockchain queries
  */
 export class CdcAgentService {
     private openai: OpenAI | null = null;
+    private gemini: GoogleGenerativeAI | null = null;
+    private activeAI: 'gemini' | 'openai' | 'none' = 'none';
     private initialized = false;
 
     constructor() {
@@ -25,16 +28,67 @@ export class CdcAgentService {
                 console.log('✅ Crypto.com Developer Platform Client initialized');
             }
 
-            // Initialize OpenAI for query interpretation
-            if (env.OPENAI_API_KEY) {
+            // Prefer Gemini (FREE) over OpenAI
+            if (env.GEMINI_API_KEY) {
+                this.gemini = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+                this.activeAI = 'gemini';
+                console.log('✅ Google Gemini AI initialized (FREE tier)');
+            } else if (env.OPENAI_API_KEY) {
                 this.openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+                this.activeAI = 'openai';
                 console.log('✅ OpenAI Client initialized');
+            } else {
+                console.log('⚠️  No AI provider configured - direct mode only');
             }
 
             this.initialized = !!env.CDC_DASHBOARD_API_KEY;
         } catch (error) {
             console.error('Error initializing CdcAgentService:', error);
             this.initialized = false;
+        }
+    }
+
+    /**
+     * Get AI interpretation using available provider
+     */
+    private async getAIResponse(message: string): Promise<string> {
+        const systemPrompt = `You are a helpful blockchain assistant for the Cronos network. 
+You can help users:
+- Get the latest block information
+- Check wallet balances (provide an address)
+- View transaction details (provide a tx hash)
+- General blockchain questions
+
+Respond conversationally. If a user asks for blockchain data but doesn't provide required info (like an address), politely ask for it.`;
+
+        try {
+            if (this.activeAI === 'gemini' && this.gemini) {
+                const model = this.gemini.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
+                const response = await result.response;
+                return response.text();
+            } else if (this.activeAI === 'openai' && this.openai) {
+                const completion = await this.openai.chat.completions.create({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: message }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 300
+                });
+                return completion.choices[0]?.message?.content || '';
+            }
+
+            return ''; // No AI available
+        } catch (error: any) {
+            // Handle quota/rate limit errors gracefully
+            if (error.code === 'insufficient_quota' || error.status === 429 || error.code === 'RATE_LIMIT_EXCEEDED') {
+                console.warn(`⚠️  ${this.activeAI} quota/rate limit exceeded - falling back to direct mode`);
+                return '';
+            }
+            console.error(`${this.activeAI} error:`, error.message);
+            return '';
         }
     }
 
@@ -50,43 +104,9 @@ export class CdcAgentService {
             const lowerMessage = message.toLowerCase();
             let aiResponse = '';
 
-            // Try OpenAI interpretation (with quota error handling)
-            if (this.openai) {
-                try {
-                    const completion = await this.openai.chat.completions.create({
-                        model: 'gpt-3.5-turbo',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: `You are a helpful blockchain assistant for the Cronos network. 
-You can help users:
-- Get the latest block information
-- Check wallet balances (provide an address)
-- View transaction details (provide a tx hash)
-- General blockchain questions
-
-Respond conversationally. If a user asks for blockchain data but doesn't provide required info (like an address), politely ask for it.`
-                            },
-                            {
-                                role: 'user',
-                                content: message
-                            }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 300
-                    });
-
-                    aiResponse = completion.choices[0]?.message?.content || '';
-                } catch (error: any) {
-                    // Handle quota exceeded gracefully
-                    if (error.code === 'insufficient_quota' || error.status === 429) {
-                        console.warn('⚠️  OpenAI quota exceeded - falling back to direct mode');
-                        aiResponse = ''; // Will use direct blockchain query mode below
-                    } else {
-                        // Log other errors but continue with fallback
-                        console.error('OpenAI error:', error.message);
-                    }
-                }
+            // Try AI interpretation if available
+            if (this.activeAI !== 'none') {
+                aiResponse = await this.getAIResponse(message);
             }
 
             // PRIORITY: Check blockchain queries FIRST (before AI response)
@@ -134,8 +154,12 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 return aiResponse;
             }
 
-            // OpenAI unavailable - provide direct command help
-            return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "tx 0x..." - View transaction details\n\nNote: For conversational AI, please add credits to your OpenAI account.`;
+            // No AI available - provide direct command help
+            const aiStatus = this.activeAI === 'none'
+                ? 'No AI provider configured. Add GEMINI_API_KEY (free) or OPENAI_API_KEY to .env for conversational mode.'
+                : `${this.activeAI === 'gemini' ? 'Gemini' : 'OpenAI'} temporarily unavailable.`;
+
+            return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "tx 0x..." - View transaction details\n\n${aiStatus}`;
 
         } catch (error: any) {
             console.error('Error processing message:', error);

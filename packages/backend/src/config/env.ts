@@ -14,6 +14,7 @@ const envSchema = z.object({
     CRONOS_CHAIN_ID: z.string().default('338'),
     CDC_DASHBOARD_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    GEMINI_API_KEY: z.string().optional(),
     CDC_PROVIDER_URL: z.string().optional(),
 });
 
