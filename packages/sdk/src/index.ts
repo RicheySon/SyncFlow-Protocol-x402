@@ -1,6 +1,5 @@
 import { SyncFlowClient } from './client/SyncFlowClient';
 import { AgentClient } from './client/AgentClient';
-import { WorkflowBuilder } from './client/WorkflowBuilder';
 import { SyncFlowConfig } from './types';
 
 export class SyncFlow extends SyncFlowClient {
@@ -12,5 +11,4 @@ export class SyncFlow extends SyncFlowClient {
     }
 }
 
-export { WorkflowBuilder };
 export * from './types';
