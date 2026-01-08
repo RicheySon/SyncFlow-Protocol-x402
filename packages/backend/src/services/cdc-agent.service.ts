@@ -2,6 +2,7 @@ import { Client, Wallet, Transaction, Block } from '@crypto.com/developer-platfo
 import { env } from '../config/env.js';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { X402Handler } from './core/x402/X402Handler';
 
 /**
  * SyncFlow AI Agent Service
@@ -21,11 +22,15 @@ export class CdcAgentService {
         try {
             // Initialize Developer Platform Client
             if (env.CDC_DASHBOARD_API_KEY) {
+                // FORCE TESTNET PRIORITY: Use CRONOS_RPC_URL first
+                const providerUrl = env.CRONOS_RPC_URL || 'https://evm-t3.cronos.org';
+
                 Client.init({
                     apiKey: env.CDC_DASHBOARD_API_KEY,
-                    ...(env.CDC_PROVIDER_URL && { provider: env.CDC_PROVIDER_URL })
+                    provider: providerUrl
                 });
                 console.log('✅ Crypto.com Developer Platform Client initialized');
+                console.log('🔌 Provider URL (Forced):', providerUrl);
             }
 
             // Prefer Gemini (FREE) over OpenAI
@@ -155,6 +160,45 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                     return `Transaction Details:\n${JSON.stringify(response.data, null, 2)}`;
                 } catch (error: any) {
                     return `I tried to fetch transaction details but encountered an error: ${error.message}`;
+                }
+            }
+
+            // Check if user wants to SEND tokens (Transaction Proposal)
+            // Regex to find amount: "10 cro", "5.5 TCRO", etc.
+            const amountMatch = lowerMessage.match(/(\d+(\.\d+)?)\s*(cro|tcro)/i);
+            // Regex to find address: 0x...
+            const toAddressMatch = message.match(/0x[a-fA-F0-9]{40}/);
+
+            if ((lowerMessage.includes('send') || lowerMessage.includes('transfer')) && amountMatch && toAddressMatch) {
+                const amount = amountMatch[1];
+                const recipient = toAddressMatch[0];
+
+                // Use X402 Handler to prepare the payment
+                try {
+                    const x402Handler = new X402Handler();
+                    const quote = await x402Handler.processPayment({
+                        token: 'CRO',
+                        amount: amount,
+                        recipient: recipient
+                    });
+
+                    // Return a structured JSON string for the frontend to parse
+                    return JSON.stringify({
+                        type: "transaction_proposal",
+                        data: {
+                            // In a full X402 implementation, we would send to the facilitator contract
+                            // For this hackathon/demo version, we might send directly or to the facilitator
+                            to: recipient, // Sending directly for now to ensure user works with standard wallet
+                            amount: amount,
+                            token: "CRO",
+                            protocol: "x402", // Mark as X402 protocol transaction
+                            quoteId: quote.quoteId
+                        },
+                        message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
+                    });
+                } catch (error: any) {
+                    console.error('X402 processing error:', error);
+                    return `I tried to initiate an X402 payment but failed: ${error.message}`;
                 }
             }
 

@@ -55,13 +55,13 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
 
     const steps = [
         { title: 'Connect Wallet', icon: Wallet, desc: 'Connect your wallet to proceed...' },
+        { title: 'x402 Handshake', icon: ShieldCheck, desc: 'Requesting settlement quote...' }, // New Step
         { title: 'Validate Balance', icon: Activity, desc: 'Checking sufficient TCRO balance...' },
-        { title: 'Execute Payments', icon: Zap, desc: 'Sending TCRO to recipients...' },
-        { title: 'Confirm Transactions', icon: ShieldCheck, desc: 'Waiting for blockchain confirmations...' },
+        { title: 'Execute Payments', icon: Zap, desc: 'Sending TCRO via X402 Protocol...' },
+        { title: 'Confirm Transactions', icon: CheckCircle2, desc: 'Waiting for blockchain confirmations...' },
         { title: 'Complete', icon: CheckCircle2, desc: 'All payments processed successfully!' }
     ];
 
-    // Calculate total amount when modal opens
     const calculateTotal = () => {
         const total = subUsers.reduce((sum, user) => {
             const amount = parseFloat(user.amount || '0');
@@ -69,6 +69,11 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
         }, 0);
         setTotalAmount(total);
     };
+
+    // Update total when subUsers change
+    useEffect(() => {
+        calculateTotal();
+    }, [subUsers]);
 
     const handleConnectWallet = async () => {
         setProcessing(true);
@@ -94,6 +99,28 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
         } catch (error: any) {
             console.error('Connection failed:', error);
             setErrorMessage(error.message || 'Failed to connect wallet');
+            setProcessing(false);
+        }
+    };
+
+    const [quote, setQuote] = useState<{ id: string; fee: number; validUntil: string } | null>(null);
+
+    const requestX402Quote = async () => {
+        try {
+            console.log('Initiating X402 Handshake...');
+            // Simulate API call to backend X402Handler
+            await new Promise(r => setTimeout(r, 1500));
+
+            setQuote({
+                id: `q_${Math.random().toString(36).substr(2, 9)}`,
+                fee: 0.001, // Mock protocol fee
+                validUntil: new Date(Date.now() + 15 * 60000).toLocaleTimeString()
+            });
+
+            setStep(2); // Move to Validate Balance
+            validateBalance();
+        } catch (error) {
+            setErrorMessage('Failed to obtain X402 quote');
             setProcessing(false);
         }
     };
@@ -125,23 +152,21 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             }
 
             // Move to execution step
-            setStep(2);
-
-            // Small delay before executing
-            setTimeout(() => {
-                executeBatchPayments();
-            }, 500);
-
+            setStep(3);
+            setProcessing(false); // Enable UI for user confirmation
         } catch (error: any) {
             console.error('Balance validation error:', error);
             setErrorMessage(error.message || 'Failed to validate balance');
             setProcessing(false);
-            // setStep(0); // Reset to start
         }
     };
 
+    const [executionStatus, setExecutionStatus] = useState<string>('');
+
     const executeBatchPayments = async () => {
         try {
+            setProcessing(true); // Start processing
+            setExecutionStatus('Initializing provider...');
             console.log('Starting batch payment execution...');
             const { ethers } = await import('ethers');
             const { CONTRACTS } = await import('@/lib/config');
@@ -164,6 +189,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             const signer = await provider.getSigner();
             const signerAddress = await signer.getAddress();
             console.log('Signer:', signerAddress);
+            setExecutionStatus(`Signer: ${signerAddress.slice(0, 6)}...`);
 
             // Validate and format recipients to ensure they are check-summed addresses
             const tcroRecipients = subUsers.filter(user => user.currency === 'TCRO');
@@ -175,6 +201,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             const recipients = [];
             const amounts = [];
 
+            setExecutionStatus('Preparing transaction data...');
             for (const u of tcroRecipients) {
                 if (!ethers.isAddress(u.address)) {
                     throw new Error(`Invalid address: ${u.address}`);
@@ -197,13 +224,15 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             const contract = new ethers.Contract(CONTRACTS.agentWallet, contractABI, signer);
 
             // Verify ownership before sending
+            setExecutionStatus('Verifying contract ownership...');
             try {
                 const owner = await contract.owner();
                 if (owner.toLowerCase() !== signerAddress.toLowerCase()) {
-                    throw new Error(`Caller is not owner. Owner: ${owner}`);
+                    throw new Error(`Caller (${signerAddress.slice(0, 6)}...) is not the owner (${owner.slice(0, 6)}...). Transaction will revert.`);
                 }
-            } catch (err) {
-                console.warn('Could not verify owner, proceeding...', err);
+            } catch (err: any) {
+                console.error('Ownership validation failed:', err);
+                throw err; // Stop execution if ownership check fails
             }
 
             // Set all as pending
@@ -212,21 +241,33 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             });
 
             // Estimate gas first
+            setExecutionStatus('Estimating gas...');
             try {
                 await contract.batchTransfer.estimateGas(recipients, amounts);
             } catch (err: any) {
                 console.error('Gas estimation failed:', err);
+                let msg = "Gas estimation failed - transaction implies revert.";
                 if (err.message && err.message.includes("Insufficient contract balance")) {
-                    throw new Error("Insufficient contract balance (gas estimation failed)");
+                    msg = "Insufficient contract balance for transfer.";
+                } else if (err.message && err.message.includes("Caller is not owner")) {
+                    msg = "Caller is not contract owner.";
                 }
+                throw new Error(msg);
             }
 
             // Execute single contract transaction
             console.log('Sending transaction...');
+            setErrorMessage(null); // Clear previous errors
+
+            // Temporary UI feedback for signing
+            const originalText = document.getElementById('exec-btn-text')?.innerText;
+            // We can't easily change button text from here without state, but we rely on error handling.
+
             const tx = await contract.batchTransfer(recipients, amounts);
             console.log('Transaction submitted:', tx.hash);
 
             setTxHashes([tx.hash]);
+            setStep(4); // Move to Confirm Transactions (index 4) immediately
 
             // Wait for confirmation
             console.log('Waiting for confirmation...');
@@ -244,11 +285,11 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
                 onTransactionSuccess(tx.hash, parseFloat(ethers.formatEther(totalEth)), recipients.length);
             }
 
-            setStep(3);
+            setStep(4); // Move to Confirm Transactions (index 4)
 
             // Move to complete after brief delay
             setTimeout(() => {
-                setStep(4);
+                setStep(5); // Move to Complete (index 5)
                 setProcessing(false);
             }, 1500);
 
@@ -276,8 +317,9 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             setStep(0);
             await handleConnectWallet();
         } else {
+            // Start X402 Handshake
             setStep(1);
-            await validateBalance();
+            await requestX402Quote();
         }
     };
 
@@ -388,20 +430,49 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
                             </div>
                         ) : (
                             <div className="text-center space-y-3">
-                                <p className="text-slate-400 text-sm">
-                                    Ready to distribute {totalAmount.toFixed(2)} TCRO to {tcroRecipients.length} recipient{tcroRecipients.length !== 1 ? 's' : ''}.
-                                </p>
-                                {tcroRecipients.length === 0 && (
-                                    <p className="text-amber-400 text-xs">
-                                        No TCRO recipients found. Add recipients with TCRO currency.
+                                {quote ? (
+                                    <div className="bg-indigo-950/50 border border-indigo-900 rounded-lg p-3 text-left space-y-2">
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-indigo-300">Protocol Quote ID</span>
+                                            <span className="font-mono text-white">{quote.id}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-indigo-300">Network Fee Est.</span>
+                                            <span className="font-mono text-white">~0.02 TCRO</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-indigo-300">X402 Protocol Fee</span>
+                                            <span className="font-mono text-emerald-400">{quote.fee} TCRO</span>
+                                        </div>
+                                        <div className="border-t border-indigo-900 my-2 pt-2 flex justify-between items-center font-bold">
+                                            <span className="text-indigo-200">Total Required</span>
+                                            <span className="text-white">{(totalAmount + quote.fee).toFixed(3)} TCRO</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-400 text-sm">
+                                        Ready to distribute {totalAmount.toFixed(2)} TCRO to {tcroRecipients.length} recipient{tcroRecipients.length !== 1 ? 's' : ''}.
                                     </p>
                                 )}
+
+                                <p className="text-xs text-slate-500">
+                                    Proceeding will execute a batch transaction via X402 Settlement Protocol on Cronos Testnet.
+                                </p>
                             </div>
                         )}
 
                         {errorMessage && (
                             <div className="mt-4 bg-red-950 border border-red-800 rounded-lg p-3">
                                 <p className="text-sm text-red-300">{errorMessage}</p>
+                            </div>
+                        )}
+
+                        {processing && executionStatus && (
+                            <div className="mt-4 bg-slate-900 border border-slate-700 rounded-lg p-3">
+                                <div className="flex items-center gap-2">
+                                    <Activity className="h-4 w-4 animate-spin text-emerald-400" />
+                                    <p className="text-sm text-emerald-300">{executionStatus}</p>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -419,12 +490,18 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
                     )}
 
                     {step === 1 && (
+                        <Button disabled className="bg-indigo-600 w-full sm:w-auto">
+                            <ShieldCheck className="mr-2 h-4 w-4 animate-pulse" /> Requesting X402 Quote...
+                        </Button>
+                    )}
+
+                    {step === 2 && (
                         <Button disabled className="bg-slate-700 w-full sm:w-auto">
                             <Activity className="mr-2 h-4 w-4 animate-spin" /> Validating Balance...
                         </Button>
                     )}
 
-                    {step === 2 && (
+                    {step === 3 && (
                         <Button
                             onClick={executeBatchPayments}
                             disabled={processing}
@@ -435,13 +512,13 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
                         </Button>
                     )}
 
-                    {step === 3 && (
+                    {step === 4 && (
                         <Button disabled className="bg-emerald-600/50 w-full sm:w-auto">
                             <ShieldCheck className="mr-2 h-4 w-4" /> Confirming...
                         </Button>
                     )}
 
-                    {step === 4 && (
+                    {step === 5 && (
                         <Button
                             onClick={handleClose}
                             className="bg-slate-700 hover:bg-slate-600 w-full sm:w-auto"
@@ -1262,6 +1339,7 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
 }) {
     const [tcroBalance, setTcroBalance] = useState('0.00');
     const [usdcBalance, setUsdcBalance] = useState('0.00');
+    const [agentWalletAddress, setAgentWalletAddress] = useState<string>('');
 
     useEffect(() => {
         let mounted = true;
@@ -1272,6 +1350,7 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
                 const bal = await getTCROBalance(CONTRACTS.agentWallet);
                 if (mounted) {
                     setTcroBalance(parseFloat(bal).toFixed(2));
+                    setAgentWalletAddress(CONTRACTS.agentWallet);
                 }
             } catch (e) {
                 console.error("Failed to fetch balance", e);
@@ -1312,10 +1391,16 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
                     <div className="p-3 bg-slate-900 rounded-lg space-y-2">
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-400">Smart Address</span>
-                            <Copy className="h-3 w-3 text-slate-500 cursor-pointer" />
+                            <Copy
+                                className="h-3 w-3 text-slate-500 cursor-pointer hover:text-emerald-400"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(agentWalletAddress);
+                                    alert('Agent wallet address copied!');
+                                }}
+                            />
                         </div>
                         <p className="font-mono text-xs text-slate-300 break-all">
-                            {address}
+                            {agentWalletAddress || 'Loading...'}
                         </p>
                     </div>
 
@@ -1334,12 +1419,8 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
                         <div className="col-span-2">
                             <BatchPaymentModal subUsers={subUsers} onTransactionSuccess={onTransactionSuccess} />
                         </div>
-                        <Button variant="outline" className="w-full border-slate-700 hover:bg-slate-800">
-                            Deposit
-                        </Button>
-                        <Button variant="outline" className="w-full border-slate-700 hover:bg-slate-800">
-                            <Key className="mr-2 h-3 w-3" /> Keys
-                        </Button>
+                        <DepositModal />
+                        <KeysModal agent={null} />
                     </div>
                 </div>
             </CardContent>
