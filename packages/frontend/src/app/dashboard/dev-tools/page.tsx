@@ -30,21 +30,27 @@ const client = new SyncFlowClient({
 await client.connect();`;
 
 const createAgentCode = `const agent = await client.createAgent({
-  name: 'Treasury Manager',
-  type: 'DAO_MGR',
+  name: 'Payroll Manager',
+  type: 'PAYROLL',
   riskProfile: 'LOW',
-  autoExecute: true
+  autoExecute: false
 });
 
 console.log('Agent Deployed:', agent.address);`;
 
-const executeTxCode = `const receipt = await agent.execute({
-  action: 'SWAP',
-  params: {
-    tokenIn: 'USDC',
-    tokenOut: 'CRO',
-    amount: '1000'
-  }
+const executeTxCode = `// Add recipients for batch payment
+await agent.addRecipient({
+  name: 'Employee 1',
+  address: '0x742d...35A1',
+  amount: '100',
+  currency: 'TCRO'
+});
+
+// Execute batch payment via X402 Protocol
+const receipt = await agent.executeBatchPayment({
+  protocol: 'x402',
+  recipients: agent.getRecipients(),
+  currency: 'TCRO'
 });`;
 
 export default function DevToolsPage() {
