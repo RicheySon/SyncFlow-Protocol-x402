@@ -1,5 +1,5 @@
 {
-    "buildCommand": "cd packages/frontend && npm run build",
+    "buildCommand": "turbo run build --filter=@syncflow/frontend",
     "outputDirectory": "packages/frontend/.next",
     "installCommand": "npm install",
     "framework": null
