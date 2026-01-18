@@ -124,7 +124,7 @@ export default function TransactionsPage() {
                 </div>
             </div>
 
-            <Card className="bg-slate-950 border-slate-800">
+            <Card className="border-border bg-card">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle>History</CardTitle>
@@ -133,13 +133,13 @@ export default function TransactionsPage() {
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search tx hash or agent..."
-                                    className="pl-8 w-[300px] bg-slate-900 border-slate-800"
+                                    className="pl-8 w-[300px] bg-background"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </div>
                             <Select value={filter} onValueChange={setFilter}>
-                                <SelectTrigger className="w-[150px] bg-slate-900 border-slate-800">
+                                <SelectTrigger className="w-[150px] bg-background">
                                     <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
                                     <SelectValue placeholder="All Types" />
                                 </SelectTrigger>
@@ -155,7 +155,7 @@ export default function TransactionsPage() {
                 <CardContent>
                     <div className="relative overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
+                            <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                                 <tr>
                                     <th className="px-4 py-3">Transaction Hash</th>
                                     <th className="px-4 py-3">Type</th>
@@ -168,57 +168,57 @@ export default function TransactionsPage() {
                             <tbody>
                                 {filteredTransactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                                        <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                                             {loading ? 'Loading history...' : 'No transactions found'}
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredTransactions.map((tx, i) => (
-                                        <tr key={i} className="border-b border-slate-800 hover:bg-slate-900/50">
-                                            <td className="px-4 py-4 font-mono text-xs text-slate-300">
+                                        <tr key={i} className="border-b border-border hover:bg-muted/50">
+                                            <td className="px-4 py-4 font-mono text-xs text-foreground/80">
                                                 <div className="flex items-center gap-2">
                                                     <a
                                                         href={`https://cronos.org/explorer/testnet3/tx/${tx.txHash}`}
                                                         target="_blank"
                                                         rel="noreferrer"
-                                                        className="hover:text-blue-400 hover:underline flex items-center gap-1"
+                                                        className="hover:text-primary hover:underline flex items-center gap-1"
                                                     >
                                                         {tx.txHash ? `${tx.txHash.substring(0, 10)}...${tx.txHash.substring(tx.txHash.length - 8)}` : 'N/A'}
                                                         <ExternalLink className="h-3 w-3" />
                                                     </a>
                                                     <button
                                                         onClick={() => handleCopy(tx.txHash, i.toString())}
-                                                        className="hover:text-slate-100 transition-colors p-1"
+                                                        className="hover:text-foreground transition-colors p-1"
                                                         title="Copy Transaction Hash"
                                                     >
                                                         {copiedId === i.toString() ? (
-                                                            <Check className="h-3 w-3 text-emerald-500" />
+                                                            <Check className="h-3 w-3 text-primary" />
                                                         ) : (
-                                                            <Copy className="h-3 w-3 text-slate-600 hover:text-slate-400" />
+                                                            <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                                         )}
                                                     </button>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4">
-                                                <Badge variant="outline" className={`border-emerald-500/20 ${tx.type.includes('Payment') ? 'bg-emerald-500/10 text-emerald-500' :
-                                                        'bg-blue-500/10 text-blue-500'
+                                                <Badge variant="outline" className={`border-primary/20 ${tx.type.includes('Payment') ? 'bg-primary/10 text-primary' :
+                                                    'bg-secondary/10 text-secondary'
                                                     }`}>
                                                     {tx.type}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-4 text-slate-400 font-mono text-xs">
+                                            <td className="px-4 py-4 text-muted-foreground font-mono text-xs">
                                                 {tx.agentId ? tx.agentId.substring(0, 8) : 'Unknown'}
                                             </td>
-                                            <td className="px-4 py-4 font-medium text-slate-200">
+                                            <td className="px-4 py-4 font-medium text-foreground">
                                                 {tx.amount}
                                             </td>
                                             <td className="px-4 py-4">
-                                                <div className="flex items-center gap-2 text-emerald-500 text-xs">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                <div className="flex items-center gap-2 text-primary text-xs">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                                                     Success
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-right text-slate-400">
+                                            <td className="px-4 py-4 text-right text-muted-foreground">
                                                 {new Date(tx.date).toLocaleString()}
                                             </td>
                                         </tr>

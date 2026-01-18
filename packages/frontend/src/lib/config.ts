@@ -14,6 +14,7 @@ export const CONTRACTS = {
     agentWallet: process.env.NEXT_PUBLIC_CONTRACT_AGENT_WALLET || '0x21E205e2C45417E81d39F28183cA0BA1493ACeee',
     paymentRouter: process.env.NEXT_PUBLIC_CONTRACT_PAYMENT_ROUTER || '',
     conditionalExecutor: process.env.NEXT_PUBLIC_CONTRACT_CONDITIONAL_EXECUTOR || '',
+    devUSDC: '0xc01efAaF7C5C61bEbFAeb358E1161b537b8bC0e0',
 };
 
 export const API_CONFIG = {

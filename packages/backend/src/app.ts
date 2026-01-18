@@ -5,9 +5,11 @@ import { env } from './config/env';
 
 import logger from './middlewares/logger.middleware';
 import { rateLimiter } from './middlewares/rateLimit.middleware';
+// import { x402Middleware } from './middlewares/x402';
 
 import { authRoutes } from './routes/auth.routes';
 import { agentsRoutes } from './routes/agents.routes';
+import paymentRoutes from './routes/payment.routes';
 
 import { transactionsRoutes } from './routes/transactions.routes';
 import { chatRoutes } from './routes/chat.routes';
@@ -22,9 +24,13 @@ app.use(express.json());
 app.use(logger);
 app.use(rateLimiter);
 
+// Remove global x402 middleware - applied selectively to routes
+// app.use(x402Middleware);
+
 // Routes
 app.use('/auth', authRoutes);
 app.use('/agents', agentsRoutes);
+app.use('/payment', paymentRoutes); // x402 Settlement
 
 app.use('/transactions', transactionsRoutes);
 app.use('/chat', chatRoutes);

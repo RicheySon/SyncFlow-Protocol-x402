@@ -2,19 +2,23 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bot, Lock, Mail, User } from 'lucide-react';
+import {
+    Lock,
+    Mail,
+    User,
+    CheckCircle2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { authApi } from '@/lib/api/auth';
+import { ModeToggle } from '@/components/mode-toggle';
 
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
     const [loginData, setLoginData] = useState({ email: '', password: '' });
     const [signupData, setSignupData] = useState({ email: '', password: '', name: '' });
 
@@ -22,7 +26,6 @@ export default function LoginPage() {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
-
         try {
             await authApi.login(loginData);
             router.push('/dashboard/agents');
@@ -37,7 +40,6 @@ export default function LoginPage() {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
-
         try {
             await authApi.signup(signupData);
             router.push('/dashboard/agents');
@@ -49,169 +51,174 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-            <div className="w-full max-w-md">
-                {/* Logo/Branding */}
-                <div className="flex flex-col items-center mb-8 space-y-2">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 ring-2 ring-primary/20">
-                        <Bot className="h-10 w-10 text-primary" />
+        <div className="flex min-h-screen w-full bg-background text-foreground overflow-hidden">
+            {/* Left Column - Hero Image */}
+            <div className="hidden lg:flex lg:w-3/5 w-full relative overflow-hidden">
+                {/* Background Image */}
+                <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: "url('/login-bg.jpg')" }}
+                />
+
+                {/* Overlay Gradient - adapts to theme */}
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+
+                {/* Content */}
+                <div className="relative z-10 flex flex-col justify-between w-full h-full p-12">
+                    {/* Top Status */}
+                    <div className="flex">
+                        <div className="flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 backdrop-blur-md">
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                            <span className="text-xs font-mono font-medium text-primary tracking-wider">ENCRYPTED SESSION</span>
+                        </div>
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight">SyncFlow Protocol</h1>
-                    <p className="text-sm text-muted-foreground text-center">
-                        Autonomous Financial Settlement for AI Agents
-                    </p>
+
+                    {/* Bottom Hero Text */}
+                    <div className="space-y-6 max-w-2xl">
+                        <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.1]">
+                            Autonomous <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+                                Financial Settlement.
+                            </span>
+                        </h1>
+                        <p className="text-lg text-muted-foreground font-light leading-relaxed max-w-lg">
+                            Enable your AI agents to transact seamlessly on Cronos EVM with x402 protocol. Instant micropayments, zero friction.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Column - Auth Interface */}
+            <div className="flex-1 w-full lg:w-2/5 flex flex-col relative bg-card border-l border-border">
+                {/* Theme Toggle Positioned */}
+                <div className="absolute top-6 right-6 z-20">
+                    <ModeToggle />
                 </div>
 
-                {/* Auth Card */}
-                <Card className="shadow-2xl border-primary/10">
-                    <Tabs defaultValue="login" className="w-full">
-                        <CardHeader className="space-y-1 pb-4">
+                <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 md:px-16 lg:px-20 py-12">
+                    <div className="w-full max-w-[400px] mx-auto space-y-8">
+
+                        {/* Header Area */}
+                        <div className="space-y-4">
+                            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-secondary p-[1px] shadow-2xl shadow-primary/20">
+                                <div className="h-full w-full rounded-2xl bg-background flex items-center justify-center">
+                                    <Lock className="h-6 w-6 text-primary" />
+                                </div>
+                            </div>
+                            <div>
+                                <h2 className="text-3xl font-bold text-foreground">SyncFlow Protocol</h2>
+                                <p className="text-muted-foreground mt-2">Access the autonomous financial settlement platform.</p>
+                            </div>
+                        </div>
+
+                        {/* Tabs for Login/Sign Up */}
+                        <Tabs defaultValue="login" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="login">Login</TabsTrigger>
                                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
                             </TabsList>
-                        </CardHeader>
 
-                        {/* Login Tab */}
-                        <TabsContent value="login">
-                            <form onSubmit={handleLogin}>
-                                <CardContent className="space-y-4">
-                                    <CardDescription className="text-center">
-                                        Welcome back! Sign in to your account
-                                    </CardDescription>
-
+                            {/* Login Form */}
+                            <TabsContent value="login" className="space-y-4 mt-6">
+                                <form onSubmit={handleLogin} className="space-y-4">
                                     {error && (
-                                        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                                        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                                             {error}
                                         </div>
                                     )}
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="login-email">Email</Label>
-                                        <div className="relative">
-                                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                id="login-email"
-                                                type="email"
-                                                placeholder="agent@syncflow.ai"
-                                                className="pl-10"
-                                                value={loginData.email}
-                                                onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                                                required
-                                                disabled={isLoading}
-                                            />
-                                        </div>
+                                        <Label>Email</Label>
+                                        <Input
+                                            type="email"
+                                            placeholder="agent@syncflow.ai"
+                                            value={loginData.email}
+                                            onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                                            required
+                                        />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="login-password">Password</Label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                id="login-password"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                className="pl-10"
-                                                value={loginData.password}
-                                                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                                                required
-                                                disabled={isLoading}
-                                            />
-                                        </div>
+                                        <Label>Password</Label>
+                                        <Input
+                                            type="password"
+                                            placeholder="••••••••"
+                                            value={loginData.password}
+                                            onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                                            required
+                                        />
                                     </div>
-                                </CardContent>
 
-                                <CardFooter>
-                                    <Button type="submit" className="w-full" disabled={isLoading}>
+                                    <Button type="submit" className="w-full h-11" disabled={isLoading}>
                                         {isLoading ? 'Signing in...' : 'Sign In'}
                                     </Button>
-                                </CardFooter>
-                            </form>
-                        </TabsContent>
+                                </form>
+                            </TabsContent>
 
-                        {/* Signup Tab */}
-                        <TabsContent value="signup">
-                            <form onSubmit={handleSignup}>
-                                <CardContent className="space-y-4">
-                                    <CardDescription className="text-center">
-                                        Create a new account to get started
-                                    </CardDescription>
-
+                            {/* Sign Up Form */}
+                            <TabsContent value="signup" className="space-y-4 mt-6">
+                                <form onSubmit={handleSignup} className="space-y-4">
                                     {error && (
-                                        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                                        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                                             {error}
                                         </div>
                                     )}
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="signup-name">Name</Label>
-                                        <div className="relative">
-                                            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                id="signup-name"
-                                                type="text"
-                                                placeholder="John Doe"
-                                                className="pl-10"
-                                                value={signupData.name}
-                                                onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                                                disabled={isLoading}
-                                            />
-                                        </div>
+                                        <Label>Name</Label>
+                                        <Input
+                                            placeholder="Agent Name"
+                                            value={signupData.name}
+                                            onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
+                                            required
+                                        />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="signup-email">Email</Label>
-                                        <div className="relative">
-                                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                id="signup-email"
-                                                type="email"
-                                                placeholder="agent@syncflow.ai"
-                                                className="pl-10"
-                                                value={signupData.email}
-                                                onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                                                required
-                                                disabled={isLoading}
-                                            />
-                                        </div>
+                                        <Label>Email</Label>
+                                        <Input
+                                            type="email"
+                                            placeholder="agent@syncflow.ai"
+                                            value={signupData.email}
+                                            onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                                            required
+                                        />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="signup-password">Password</Label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                id="signup-password"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                className="pl-10"
-                                                value={signupData.password}
-                                                onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                                                required
-                                                minLength={6}
-                                                disabled={isLoading}
-                                            />
-                                        </div>
+                                        <Label>Password</Label>
+                                        <Input
+                                            type="password"
+                                            placeholder="••••••••"
+                                            value={signupData.password}
+                                            onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                                            required
+                                            minLength={6}
+                                        />
                                         <p className="text-xs text-muted-foreground">
                                             Must be at least 6 characters
                                         </p>
                                     </div>
-                                </CardContent>
 
-                                <CardFooter>
-                                    <Button type="submit" className="w-full" disabled={isLoading}>
+                                    <Button type="submit" className="w-full h-11" disabled={isLoading}>
                                         {isLoading ? 'Creating account...' : 'Create Account'}
                                     </Button>
-                                </CardFooter>
-                            </form>
-                        </TabsContent>
-                    </Tabs>
-                </Card>
+                                </form>
+                            </TabsContent>
+                        </Tabs>
 
-                {/* Footer */}
-                <p className="text-center text-sm text-muted-foreground mt-6">
-                    Powered by Cronos EVM • Built for AI Agents
-                </p>
+                        {/* Security Footer Card */}
+                        <div className="mt-8 rounded-xl bg-muted/50 border border-border p-4 flex gap-4 items-start">
+                            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h3 className="text-sm font-medium text-foreground">x402 Protocol Active</h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Your AI agents can execute instant, secure micropayments on Cronos EVM blockchain.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

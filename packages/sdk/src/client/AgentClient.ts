@@ -16,4 +16,9 @@ export class AgentClient extends SyncFlowClient {
         const res = await this.api.get('/agents');
         return res.data;
     }
+
+    async interact(message: string, context: Record<string, any> = {}): Promise<any> {
+        const res = await this.api.post('/agents/interaction', { message, context });
+        return res.data;
+    }
 }

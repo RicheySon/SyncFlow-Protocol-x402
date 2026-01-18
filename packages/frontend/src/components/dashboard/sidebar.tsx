@@ -13,6 +13,7 @@ import {
     User,
     LogOut,
     MessageSquare,
+    Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -52,11 +53,14 @@ export function DashboardSidebar() {
     };
 
     return (
-        <div className="flex h-full w-64 flex-col border-r border-border bg-muted/30">
+        <div className="flex h-full w-64 flex-col border-r border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 transition-all duration-300">
             {/* Logo */}
-            <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary" />
-                <span className="text-xl font-bold">SyncFlow</span>
+            <div className="flex h-16 items-center gap-3 border-b border-border px-6">
+                <div className="relative h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent rounded-lg" />
+                    <Box className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">SyncFlow</span>
             </div>
 
             {/* Navigation */}
@@ -68,10 +72,10 @@ export function DashboardSidebar() {
                             key={item.name}
                             href={item.href}
                             className={cn(
-                                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group relative',
                                 isActive
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                             )}
                         >
                             <item.icon className="h-5 w-5" />

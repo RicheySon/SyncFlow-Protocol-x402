@@ -4,89 +4,74 @@
 
 @layer base {
   :root {
-    /* Light mode theme */
+    /* Light Mode - Clean, High Contrast, SaaS */
     --background: 0 0% 100%;
-    /* White */
+    /* Pure White */
     --foreground: 222 47% 11%;
-    /* Dark slate */
+    /* Deep Slate Text */
 
-    --primary: 160 84% 39%;
-    /* Emerald */
-    --primary-foreground: 0 0% 100%;
-    /* White */
+    --primary: 221 83% 53%;
+    /* Bold SaaS Blue (pk: #2563EB) */
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 189 94% 43%;
-    /* Cyan */
-    --secondary-foreground: 0 0% 100%;
-    /* White */
+    --secondary: 262 83% 58%;
+    /* Vibrant Violet */
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96%;
-    /* Light gray */
-    --muted-foreground: 215 20% 40%;
-    /* Medium gray */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 93%;
-    /* Very light gray */
-    --accent-foreground: 222 47% 11%;
-    /* Dark slate */
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 84% 60%;
-    /* Red */
-    --destructive-foreground: 0 0% 100%;
-    /* White */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 214 32% 91%;
-    /* Light border */
-    --input: 214 32% 91%;
-    --ring: 189 94% 43%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
 
+    --radius: 0.5rem;
+    /* Slightly tighter radius for professional feel */
+
+    /* SaaS Specifics */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-
-    --radius: 0.75rem;
   }
 
   .dark {
-    /* Dark mode theme */
+    /* Dark Mode - Deep, Rich, Not Just Black */
     --background: 222 47% 11%;
-    /* #0F172A */
-    --foreground: 210 20% 98%;
-    /* #F1F5F9 */
+    /* Rich Slate #0f172a */
+    --foreground: 210 40% 98%;
 
-    --primary: 160 84% 39%;
-    /* #10B981 */
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 91% 60%;
+    /* Bright Blue for Dark Mode */
+    --primary-foreground: 222 47.4% 11.2%;
 
-    --secondary: 189 94% 43%;
-    /* #06B6D4 */
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 263 70% 65%;
+    /* Muted Violet */
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 28% 17%;
-    /* #1E293B */
-    --muted-foreground: 215 20% 65%;
-    /* #94A3B8 */
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 215 20% 28%;
-    /* #334155 */
+    --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84% 60%;
-    /* #EF4444 */
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 215 20% 28%;
-    /* #334155 */
-    --input: 215 20% 28%;
-    --ring: 189 94% 43%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
 
     --card: 222 47% 11%;
-    --card-foreground: 210 20% 98%;
-
+    --card-foreground: 210 40% 98%;
     --popover: 222 47% 11%;
-    --popover-foreground: 210 20% 98%;
+    --popover-foreground: 210 40% 98%;
   }
 }
 

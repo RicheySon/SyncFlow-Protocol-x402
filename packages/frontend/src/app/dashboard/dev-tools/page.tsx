@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
 import {
     Code,
     Copy,
@@ -15,16 +16,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-const sdkInstallCode = `npm install @syncflow/sdk ethers`;
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+const sdkInstallCode = `npm install syncflow-protocol-sdk-demo ethers`;
 
 const initCode = `import { SyncFlowClient, ChainId } from '@syncflow/sdk';
+import { ethers } from 'ethers';
 
+// 1. Connect to Wallet (e.g. MetaMask)
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+
+// 2. Initialize Client with Signer
 const client = new SyncFlowClient({
-  chainId: ChainId.CRONOS_TESTNET,
-  apiKey: process.env.SYNCFLOW_API_KEY
-});
-
-await client.connect();`;
+  baseUrl: 'http://localhost:3001',
+  apiKey: process.env.SYNCFLOW_API_KEY,
+  signer: signer // Required for x402 auto-payments
+});`;
 
 const createAgentCode = `const agent = await client.createAgent({
   name: 'Payroll Manager',
@@ -53,6 +61,7 @@ const receipt = await agent.executeBatchPayment({
 export default function DevToolsPage() {
     const [statusData, setStatusData] = useState<any>(null);
     const [configData, setConfigData] = useState<any>(null);
+    const [logs, setLogs] = useState<string[]>([]);
 
     useEffect(() => {
         // Fetch Status
@@ -60,6 +69,62 @@ export default function DevToolsPage() {
         // Fetch Config
         apiClient('/devtools/config').then(setConfigData).catch(console.error);
     }, []);
+
+    const addLog = (msg: string) => setLogs(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
+
+    const runTest = async () => {
+        try {
+            setLogs([]);
+            addLog('🚀 Starting x402 Test...');
+
+            // 1. Check for Wallet
+            if (!(window as any).ethereum) {
+                alert('MetaMask not found!');
+                return;
+            }
+
+            // 2. Connect Wallet
+            addLog('🔌 Connecting to Wallet...');
+            const provider = new ethers.BrowserProvider((window as any).ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = await provider.getSigner();
+            addLog(`✅ Connected: ${await signer.getAddress()}`);
+
+            // 3. Initialize Client
+            const { SyncFlow } = await import('syncflow-protocol-sdk-demo');
+
+            const client = new SyncFlow({
+                baseUrl: 'http://localhost:3001',
+                apiKey: 'test-key',
+                signer: signer
+            });
+
+            // 4. Call Protected Endpoint
+            addLog('🔒 Calling Protected Endpoint (/agents/interaction)...');
+            addLog('ℹ️ This should trigger a 402, then payment, then retry.');
+
+            // SyncFlow class exposes agents property
+            const response = await client.agents.interact('Hello Agent!', { test: true });
+
+            addLog(`✅ Success! Response: ${JSON.stringify(response.data)}`);
+            alert('Test Passed! Payment Flow Successful.');
+
+        } catch (e: any) {
+            console.error(e);
+
+            let errorMessage = e.message;
+            if (e.response && e.response.data) {
+                // Determine if data is object or string
+                const serverError = typeof e.response.data === 'object'
+                    ? JSON.stringify(e.response.data)
+                    : e.response.data;
+                errorMessage += ` | Server: ${serverError}`;
+            }
+
+            addLog(`❌ Error: ${errorMessage}`);
+            alert('Test Failed: ' + errorMessage);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -144,7 +209,7 @@ export default function DevToolsPage() {
                             <CardDescription>Get started with the TypeScript SDK in minutes.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Tabs defaultValue="sdk" className="space-y-4">
+                            <Tabs defaultValue="test" className="space-y-4">
                                 <TabsList>
                                     <TabsTrigger value="sdk" className="flex items-center gap-2">
                                         <Box className="h-4 w-4" /> Installation
@@ -161,22 +226,22 @@ export default function DevToolsPage() {
                                 </TabsList>
 
                                 <TabsContent value="sdk" className="space-y-4">
-                                    <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-50 relative group">
+                                    <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
                                         <pre>{sdkInstallCode}</pre>
                                         <Button size="icon" variant="ghost" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Copy className="h-4 w-4 text-slate-400" />
+                                            <Copy className="h-4 w-4 text-muted-foreground" />
                                         </Button>
                                     </div>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div className="rounded-lg border p-4 space-y-2">
                                             <h4 className="font-medium flex items-center gap-2">
-                                                <CheckCircle2 className="h-4 w-4 text-green-500" /> TypeScript Ready
+                                                <CheckCircle2 className="h-4 w-4 text-primary" /> TypeScript Ready
                                             </h4>
                                             <p className="text-sm text-muted-foreground">Full type definitions included for all resources.</p>
                                         </div>
                                         <div className="rounded-lg border p-4 space-y-2">
                                             <h4 className="font-medium flex items-center gap-2">
-                                                <CheckCircle2 className="h-4 w-4 text-green-500" /> Ethers.js Compatible
+                                                <CheckCircle2 className="h-4 w-4 text-primary" /> Ethers.js Compatible
                                             </h4>
                                             <p className="text-sm text-muted-foreground">Built on standard web3 primitives.</p>
                                         </div>
@@ -184,24 +249,24 @@ export default function DevToolsPage() {
                                 </TabsContent>
 
                                 <TabsContent value="init" className="space-y-4">
-                                    <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-50 relative group">
+                                    <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
                                         <pre>{initCode}</pre>
                                         <Button size="icon" variant="ghost" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Copy className="h-4 w-4 text-slate-400" />
+                                            <Copy className="h-4 w-4 text-muted-foreground" />
                                         </Button>
                                     </div>
                                 </TabsContent>
 
                                 <TabsContent value="agent" className="space-y-4">
-                                    <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-50 relative group">
+                                    <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
                                         <pre>{createAgentCode}</pre>
                                         <Button size="icon" variant="ghost" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Copy className="h-4 w-4 text-slate-400" />
+                                            <Copy className="h-4 w-4 text-muted-foreground" />
                                         </Button>
                                     </div>
                                     <div className="mt-4">
                                         <h4 className="text-sm font-medium mb-2">Next Steps:</h4>
-                                        <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-50 relative group">
+                                        <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
                                             <pre>{executeTxCode}</pre>
                                         </div>
                                     </div>
@@ -211,34 +276,23 @@ export default function DevToolsPage() {
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <Card>
                                             <CardHeader>
-                                                <CardTitle>x402 Payment Simulation</CardTitle>
+                                                <CardTitle>x402 Payment Live Test</CardTitle>
                                                 <CardDescription>
-                                                    Trigger a mock HTTP 402 Payment Required response to test client handling.
+                                                    Real transaction test on Cronos Testnet.
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
                                                 <p className="text-sm text-muted-foreground">
-                                                    This will attempt to access a protected resource, receive a 402 invoice, and automatically execute a settlement transaction on Cronos Testnet.
+                                                    Click below to trigger a real protected request. You will be asked to sign a USDC payment if not yet authorized.
                                                 </p>
-                                                <Button
-                                                    onClick={async () => {
-                                                        try {
-                                                            // Mocking a payment flow for demonstration
-                                                            alert('initiating x402 handshake...');
-                                                            await new Promise(r => setTimeout(r, 1000));
-                                                            // In real flow, this throws 402, caught by interceptor
-                                                            alert('Received 402 Payment Required: 10 CRO');
-                                                            await new Promise(r => setTimeout(r, 1500));
-                                                            alert('Executing Settlement Transaction: 0x8a...3f');
-                                                            await new Promise(r => setTimeout(r, 1000));
-                                                            alert('Payment Successful! Resource Access Granted.');
-                                                        } catch (e) {
-                                                            alert('Test failed');
-                                                        }
-                                                    }}
-                                                >
-                                                    Test Settlement Flow
+                                                <Button onClick={runTest}>
+                                                    Run Live Test (0.01 USD)
                                                 </Button>
+                                                <div className="mt-4 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs font-mono h-40 overflow-y-auto">
+                                                    {logs.length === 0 ? <span className="text-muted-foreground">Waiting for test run...</span> : logs.map((log, i) => (
+                                                        <div key={i}>{log}</div>
+                                                    ))}
+                                                </div>
                                             </CardContent>
                                         </Card>
 

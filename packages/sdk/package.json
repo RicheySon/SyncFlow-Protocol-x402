@@ -1,5 +1,5 @@
 {
-    "name": "@syncflow/sdk",
+    "name": "syncflow-protocol-sdk-demo",
     "version": "1.0.0",
     "description": "TypeScript SDK for SyncFlow Protocol - Autonomous Financial Settlement for AI Agents",
     "main": "dist/index.js",
@@ -28,7 +28,9 @@
         "url": "https://github.com/syncflow/syncflow-protocol"
     },
     "dependencies": {
+        "@crypto.com/facilitator-client": "^1.0.4",
         "axios": "^1.6.2",
+        "ethers": "^6.16.0",
         "zod": "^3.23.8"
     },
     "devDependencies": {

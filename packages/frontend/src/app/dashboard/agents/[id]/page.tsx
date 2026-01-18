@@ -599,7 +599,7 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="TCRO">TCRO</SelectItem>
-                                    <SelectItem value="USDC">USDC</SelectItem>
+                                    <SelectItem value="devUSDC.e">devUSDC.e</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -692,7 +692,7 @@ function EditUserModal({ user, onEditUser, onDeleteUser }: { user: any; onEditUs
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="TCRO">TCRO</SelectItem>
-                                    <SelectItem value="USDC">USDC</SelectItem>
+                                    <SelectItem value="devUSDC.e">devUSDC.e</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -770,9 +770,19 @@ function DepositModal() {
         try {
             // Get the agent's contract address from config
             const { CONTRACTS } = await import('@/lib/config');
-            const { sendTCRODeposit } = await import('@/lib/wallet');
+            const { sendTCRODeposit, sendERC20Token } = await import('@/lib/wallet');
 
-            const tx = await sendTCRODeposit(CONTRACTS.agentWallet, formData.amount);
+            let tx;
+
+            if (formData.currency === 'TCRO') {
+                tx = await sendTCRODeposit(CONTRACTS.agentWallet, formData.amount);
+            } else if (formData.currency === 'devUSDC.e' || formData.currency === 'USDC') {
+                // Deposit USDC to agent wallet
+                tx = await sendERC20Token(CONTRACTS.devUSDC, CONTRACTS.agentWallet, formData.amount);
+            } else {
+                throw new Error('Unsupported currency');
+            }
+
             setTxHash(tx.hash);
 
             // Wait for transaction confirmation
@@ -801,22 +811,22 @@ function DepositModal() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
-                    Deposit
+                <Button variant="outline">
+                    <CreditCard className="mr-2 h-4 w-4" /> Deposit
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Deposit Funds</DialogTitle>
                     <DialogDescription>
-                        Add TCRO to this agent's wallet on Cronos Testnet.
+                        Add TCRO to this agent&apos;s wallet on Cronos Testnet.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
                         {!walletConnected ? (
                             <div className="flex flex-col gap-3">
-                                <p className="text-sm text-slate-400">
+                                <p className="text-sm text-muted-foreground">
                                     Connect your wallet to deposit funds
                                 </p>
                                 <Button type="button" onClick={connectWallet} className="w-full">
@@ -826,9 +836,9 @@ function DepositModal() {
                             </div>
                         ) : (
                             <>
-                                <div className="rounded-lg bg-slate-900 border border-slate-800 p-3">
-                                    <p className="text-xs text-slate-400 mb-1">Connected Wallet</p>
-                                    <p className="text-sm font-mono text-emerald-400">
+                                <div className="rounded-lg bg-muted p-3">
+                                    <p className="text-xs text-muted-foreground mb-1">Connected Wallet</p>
+                                    <p className="text-sm font-mono text-primary">
                                         {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
                                     </p>
                                 </div>
@@ -845,6 +855,7 @@ function DepositModal() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="TCRO">TCRO (Testnet)</SelectItem>
+                                            <SelectItem value="devUSDC.e">devUSDC.e</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -949,7 +960,7 @@ function KeysModal({ agent }: { agent: Agent | null }) {
                 <DialogHeader>
                     <DialogTitle>Agent Keys</DialogTitle>
                     <DialogDescription>
-                        Manage your agent's cryptographic keys.
+                        Manage your agent&apos;s cryptographic keys.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -1200,7 +1211,7 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                 </div>
                                 <AddUserModal onAddUser={handleAddUser} />
                             </div>
-                            <CardDescription>Manage recipients for this entity's distributions.</CardDescription>
+                            <CardDescription>Manage recipients for this entity&apos;s distributions.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="rounded-md border">
@@ -1231,7 +1242,7 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                                                         {user.amount} {user.currency}
                                                     </TableCell>
                                                     <TableCell className="text-right space-x-2">
-                                                        <EditUserModal user={user} onEditUser={handleEditUser} />
+                                                        <EditUserModal user={user} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} />
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
@@ -1289,7 +1300,7 @@ IF (date.day === 'FRIDAY') {
                 <div className="md:col-span-4 space-y-6">
                     <WalletInfo
                         balance={tcroBalance}
-                        address={agent.address}
+                        address={agent.walletAddress || ''}
                         subUsers={subUsers}
                         onTransactionSuccess={addTransaction}
                     />
@@ -1340,77 +1351,88 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
     const [tcroBalance, setTcroBalance] = useState('0.00');
     const [usdcBalance, setUsdcBalance] = useState('0.00');
     const [agentWalletAddress, setAgentWalletAddress] = useState<string>('');
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const fetchBalances = async () => {
+        try {
+            const { CONTRACTS } = await import('@/lib/config');
+            const { getTCROBalance, getERC20Balance } = await import('@/lib/wallet');
+
+            // Parallel fetch
+            const [tcroBal, usdcBal] = await Promise.all([
+                getTCROBalance(CONTRACTS.agentWallet),
+                getERC20Balance(CONTRACTS.devUSDC, CONTRACTS.agentWallet)
+            ]);
+
+            setTcroBalance(parseFloat(tcroBal).toFixed(2));
+            setUsdcBalance(parseFloat(usdcBal).toFixed(2));
+            setAgentWalletAddress(CONTRACTS.agentWallet);
+        } catch (e) {
+            console.error("Failed to fetch balance", e);
+        }
+    };
 
     useEffect(() => {
-        let mounted = true;
-        const fetchBalances = async () => {
-            try {
-                const { CONTRACTS } = await import('@/lib/config');
-                const { getTCROBalance } = await import('@/lib/wallet');
-                const bal = await getTCROBalance(CONTRACTS.agentWallet);
-                if (mounted) {
-                    setTcroBalance(parseFloat(bal).toFixed(2));
-                    setAgentWalletAddress(CONTRACTS.agentWallet);
-                }
-            } catch (e) {
-                console.error("Failed to fetch balance", e);
-            }
-        };
-
         fetchBalances();
         // Poll every 30s
         const interval = setInterval(fetchBalances, 30000);
-        return () => {
-            mounted = false;
-            clearInterval(interval);
-        };
+        return () => clearInterval(interval);
     }, []);
 
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await fetchBalances();
+        // Minimal delay to show spinner
+        setTimeout(() => setIsRefreshing(false), 500);
+    };
+
     return (
-        <Card className="bg-slate-950 border-slate-800">
+        <Card className="h-full">
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5 text-emerald-400" />
+                        <CreditCard className="h-5 w-5 text-primary" />
                         <CardTitle>Wallet Info</CardTitle>
                     </div>
-                    <RefreshCw className="h-3 w-3 text-slate-500" />
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleRefresh}>
+                        <RefreshCw className={`h-3 w-3 text-muted-foreground ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+                    </Button>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
                     <div>
-                        <p className="text-sm text-slate-400">Total Balance</p>
+                        <p className="text-sm text-muted-foreground">Total Balance</p>
                         <h2 className="text-3xl font-bold mt-1">$0.00</h2>
-                        <div className="flex items-center gap-1 mt-1 text-xs text-emerald-500">
+                        <div className="flex items-center gap-1 mt-1 text-xs text-primary font-medium">
                             <ShieldCheck className="h-3 w-3" />
                             <span>Protected by x402</span>
                         </div>
                     </div>
 
-                    <div className="p-3 bg-slate-900 rounded-lg space-y-2">
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-400">Smart Address</span>
+                            <span className="text-muted-foreground">Smart Address</span>
                             <Copy
-                                className="h-3 w-3 text-slate-500 cursor-pointer hover:text-emerald-400"
+                                className="h-3 w-3 text-muted-foreground cursor-pointer hover:text-primary"
                                 onClick={() => {
                                     navigator.clipboard.writeText(agentWalletAddress);
                                     alert('Agent wallet address copied!');
                                 }}
                             />
                         </div>
-                        <p className="font-mono text-xs text-slate-300 break-all">
+                        <p className="font-mono text-xs text-foreground break-all">
                             {agentWalletAddress || 'Loading...'}
                         </p>
                     </div>
 
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">TCRO Balance</span>
+                            <span className="text-muted-foreground">TCRO Balance</span>
                             <span className="font-mono">{tcroBalance}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">USDC Balance</span>
+                            <span className="text-muted-foreground">devUSDC.e Balance</span>
                             <span className="font-mono">{usdcBalance}</span>
                         </div>
                     </div>

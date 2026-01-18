@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
     Book,
     Code,
@@ -116,7 +117,7 @@ export default function DocumentationPage() {
                         ))
                     ) : (
                         <div className="text-muted-foreground italic">
-                            No documentation found for "{searchQuery}"
+                            No documentation found for &quot;{searchQuery}&quot;
                         </div>
                     )}
                 </div>
@@ -158,9 +159,11 @@ export default function DocumentationPage() {
                         <h2 className="text-2xl font-bold">System Architecture</h2>
                         <div className="rounded-xl border bg-card p-6 shadow-sm space-y-8">
                             <div className="rounded-lg overflow-hidden border">
-                                <img
+                                <Image
                                     src="/assets/architecture_diagram.png"
                                     alt="SyncFlow Protocol Architecture"
+                                    width={1000}
+                                    height={600}
                                     className="w-full h-auto object-cover"
                                 />
                             </div>

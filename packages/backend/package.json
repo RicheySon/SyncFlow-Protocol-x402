@@ -17,6 +17,7 @@
     },
     "dependencies": {
         "@crypto.com/developer-platform-client": "^1.1.2",
+        "@crypto.com/facilitator-client": "^1.0.4",
         "@google/generative-ai": "^0.24.1",
         "@prisma/client": "^5.7.1",
         "bcryptjs": "^2.4.3",

@@ -118,7 +118,7 @@ export async function sendTCRODeposit(
 
         // Validate amount
         const amountWei = parseEther(amount);
-        if (amountWei <= 0n) {
+        if (amountWei <= BigInt(0)) {
             throw new Error('Amount must be greater than 0');
         }
 
@@ -172,4 +172,53 @@ export async function getWalletState(): Promise<WalletState> {
  */
 export function getExplorerTxLink(txHash: string): string {
     return `${CRONOS_CONFIG.explorerUrl}/tx/${txHash}`;
+}
+
+const ERC20_ABI = [
+    "function transfer(address to, uint256 amount) returns (bool)",
+    "function balanceOf(address account) view returns (uint256)",
+    "function decimals() view returns (uint8)"
+];
+
+/**
+ * Send ERC20 Token
+ */
+export async function sendERC20Token(
+    tokenAddress: string,
+    toAddress: string,
+    amount: string
+): Promise<{ hash: string; wait: () => Promise<any> }> {
+    if (!window.ethereum) throw new Error('MetaMask not installed');
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    // Contract instance
+    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+
+    // Get decimals
+    const decimals = await contract.decimals();
+    const amountUnits = ethers.parseUnits(amount, decimals);
+
+    const tx = await contract.transfer(toAddress, amountUnits);
+
+    return {
+        hash: tx.hash,
+        wait: () => tx.wait()
+    };
+}
+
+/**
+ * Get ERC20 Balance
+ */
+export async function getERC20Balance(tokenAddress: string, walletAddress: string): Promise<string> {
+    if (!window.ethereum) return '0';
+
+    const provider = new BrowserProvider(window.ethereum);
+    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
+    const balance = await contract.balanceOf(walletAddress);
+    const decimals = await contract.decimals();
+
+    return ethers.formatUnits(balance, decimals);
 }
