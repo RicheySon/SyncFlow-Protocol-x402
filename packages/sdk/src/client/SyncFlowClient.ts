@@ -111,7 +111,7 @@ export class SyncFlowClient {
                 signer: this.signer,
                 validBefore: Math.floor(Date.now() / 1000) + (option.maxTimeoutSeconds || 300),
                 validAfter: 0
-            });
+            } as any);
 
             console.log('✅ Payment Header Generated:', paymentHeader);
             return paymentHeader;
