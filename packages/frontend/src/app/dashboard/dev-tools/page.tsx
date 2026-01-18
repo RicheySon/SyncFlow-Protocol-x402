@@ -73,6 +73,9 @@ export default function DevToolsPage() {
     const addLog = (msg: string) => setLogs(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
     const runTest = async () => {
+        alert('SDK Testing temporarily disabled during deployment. This will be re-enabled after resolving server-side dependency issues.');
+        // TODO: Re-enable after fixing @crypto.com/facilitator-client browser compatibility
+        /*
         try {
             setLogs([]);
             addLog('🚀 Starting x402 Test...');
@@ -124,6 +127,7 @@ export default function DevToolsPage() {
             addLog(`❌ Error: ${errorMessage}`);
             alert('Test Failed: ' + errorMessage);
         }
+        */
     };
 
     return (

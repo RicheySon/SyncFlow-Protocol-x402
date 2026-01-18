@@ -25,6 +25,18 @@ const nextConfig = {
             },
         ];
     },
+    webpack: (config, { isServer }) => {
+        // Disable Node.js polyfills for client-side
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                crypto: false,
+                stream: false,
+                buffer: false,
+            };
+        }
+        return config;
+    },
 };
 
 module.exports = nextConfig;
