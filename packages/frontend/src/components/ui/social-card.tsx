@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import styles from './social-card.module.css';
 import { Twitter, Github, Gamepad2, ArrowRight } from 'lucide-react';
