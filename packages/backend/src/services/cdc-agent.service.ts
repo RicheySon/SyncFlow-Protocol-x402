@@ -109,7 +109,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
     /**
      * Process a natural language message and execute blockchain operations
      */
-    async processMessage(message: string): Promise<string> {
+    async processMessage(message: string, _context?: any): Promise<string> {
         if (!this.initialized) {
             return `[Setup Required]: Please configure CDC_DASHBOARD_API_KEY in your .env file.`;
         }
