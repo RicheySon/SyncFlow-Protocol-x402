@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 // import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -18,7 +19,10 @@ export const metadata: Metadata = {
     },
 };
 
-import { ThemeProvider } from "../components/theme-provider"
+const ThemeProvider = dynamic(
+    () => import("../components/theme-provider").then(mod => mod.ThemeProvider),
+    { ssr: false }
+);
 
 export default function RootLayout({
     children,
