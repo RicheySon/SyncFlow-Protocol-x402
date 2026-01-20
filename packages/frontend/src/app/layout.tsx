@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 // import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -19,7 +19,10 @@ export const metadata: Metadata = {
     },
 };
 
-const ThemeProvider = dynamic(
+// Force all routes to be dynamic to prevent SSR issues on Vercel
+export const dynamic = 'force-dynamic';
+
+const DynamicThemeProvider = dynamicImport(
     () => import("../components/theme-provider").then(mod => mod.ThemeProvider),
     { ssr: false }
 );
@@ -32,7 +35,7 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen relative`}>
-                <ThemeProvider
+                <DynamicThemeProvider
                     attribute="class"
                     defaultTheme="dark"
                     enableSystem
@@ -40,7 +43,7 @@ export default function RootLayout({
                 >
                     <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-background to-background pointer-events-none z-[-1]" />
                     {children}
-                </ThemeProvider>
+                </DynamicThemeProvider>
             </body>
         </html>
     );
