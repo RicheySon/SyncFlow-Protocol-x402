@@ -32,6 +32,14 @@ const nextConfig = {
                         key: 'Content-Security-Policy',
                         value: "script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none';",
                     },
+                    {
+                        key: 'X-DNS-Prefetch-Control',
+                        value: 'on'
+                    },
+                    {
+                        key: 'X-Frame-Options',
+                        value: 'SAMEORIGIN'
+                    }
                 ],
             },
         ];
