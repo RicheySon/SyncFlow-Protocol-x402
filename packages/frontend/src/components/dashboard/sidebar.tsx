@@ -15,11 +15,11 @@ import {
     MessageSquare,
     Box,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { ModeToggle } from '@/components/mode-toggle';
-import { UserManager } from '@/lib/api';
-import { authApi } from '@/lib/api/auth';
+import { cn } from '../../lib/utils';
+import { Button } from '../ui/button';
+import { ModeToggle } from '../mode-toggle';
+import { UserManager } from '../../lib/api';
+import { authApi } from '../../lib/api/auth';
 
 const navigation = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },

@@ -1,18 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+// import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
 export const dynamic = 'force-dynamic';
 
-const inter = Inter({
-    subsets: ['latin'],
-    variable: '--font-inter',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-    subsets: ['latin'],
-    variable: '--font-jetbrains-mono',
-});
+// Fallback to system fonts for local build/offline support
+const inter = { variable: '--font-inter' };
+const jetbrainsMono = { variable: '--font-jetbrains-mono' };
 
 export const metadata: Metadata = {
     title: 'SyncFlow Protocol - Autonomous Financial Settlement for AI Agents',
@@ -26,7 +20,7 @@ export const metadata: Metadata = {
     },
 };
 
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "../components/theme-provider"
 
 export default function RootLayout({
     children,

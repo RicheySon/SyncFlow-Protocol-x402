@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { ArrowRight, Zap, Cloud, Brain, Wrench, Workflow, Network, CheckCircle2, ChevronRight, Terminal, Shield, Lock, Activity, Server, Database, Code2, CreditCard, Coins } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { EncryptionText } from '@/components/ui/encryption-text';
-import { SocialCard } from '@/components/ui/social-card';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { EncryptionText } from '../components/ui/encryption-text';
+import { SocialCard } from '../components/ui/social-card';
 
 export default function HomePage() {
     return (

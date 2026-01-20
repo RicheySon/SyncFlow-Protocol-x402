@@ -21,18 +21,18 @@ import {
     CheckCircle2,
     Key
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { agentsApi, type Agent } from '@/lib/api/agents';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../../../components/ui/card';
+import { Badge } from '../../../../components/ui/badge';
+import { Input } from '../../../../components/ui/input';
+import { Label } from '../../../../components/ui/label';
+import { Switch } from '../../../../components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
+import { Textarea } from '../../../../components/ui/textarea';
+import { Progress } from '../../../../components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../../../components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
+import { agentsApi, type Agent } from '../../../../lib/api/agents';
 
 // Mock transactions and other data not yet in API can remain as placeholders or empty for now
 const mockTransactions: any[] = [];
@@ -80,7 +80,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
         setErrorMessage(null);
         try {
             console.log('Attempting wallet connection...');
-            const { connectWallet } = await import('@/lib/wallet');
+            const { connectWallet } = await import('../../../../lib/wallet');
 
             if (!window.ethereum) {
                 throw new Error('MetaMask is not installed. Please install it to continue.');
@@ -128,8 +128,8 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
     const validateBalance = async () => {
         try {
             console.log('Starting balance validation...');
-            const { CONTRACTS } = await import('@/lib/config');
-            const { getTCROBalance } = await import('@/lib/wallet');
+            const { CONTRACTS } = await import('../../../../lib/config');
+            const { getTCROBalance } = await import('../../../../lib/wallet');
 
             // Add timeout protection
             const balancePromise = getTCROBalance(CONTRACTS.agentWallet);
@@ -169,8 +169,8 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             setExecutionStatus('Initializing provider...');
             console.log('Starting batch payment execution...');
             const { ethers } = await import('ethers');
-            const { CONTRACTS } = await import('@/lib/config');
-            const { switchToCronosTestnet } = await import('@/lib/wallet');
+            const { CONTRACTS } = await import('../../../../lib/config');
+            const { switchToCronosTestnet } = await import('../../../../lib/wallet');
 
             if (!window.ethereum) {
                 throw new Error('MetaMask not installed');
@@ -742,7 +742,7 @@ function DepositModal() {
     const connectWallet = async () => {
         try {
             // Dynamic import to avoid SSR issues
-            const { connectWallet: connect } = await import('@/lib/wallet');
+            const { connectWallet: connect } = await import('../../../../lib/wallet');
             const state = await connect();
             setWalletConnected(state.isConnected);
             setWalletAddress(state.address);
@@ -769,8 +769,8 @@ function DepositModal() {
 
         try {
             // Get the agent's contract address from config
-            const { CONTRACTS } = await import('@/lib/config');
-            const { sendTCRODeposit, sendERC20Token } = await import('@/lib/wallet');
+            const { CONTRACTS } = await import('../../../../lib/config');
+            const { sendTCRODeposit, sendERC20Token } = await import('../../../../lib/wallet');
 
             let tx;
 
@@ -1034,8 +1034,8 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
 
         try {
             setBalanceLoading(true);
-            const { CONTRACTS } = await import('@/lib/config');
-            const { getTCROBalance } = await import('@/lib/wallet');
+            const { CONTRACTS } = await import('../../../../lib/config');
+            const { getTCROBalance } = await import('../../../../lib/wallet');
             const balance = await getTCROBalance(CONTRACTS.agentWallet);
             setTcroBalance(parseFloat(balance).toFixed(2));
         } catch (error) {
@@ -1355,8 +1355,8 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
 
     const fetchBalances = async () => {
         try {
-            const { CONTRACTS } = await import('@/lib/config');
-            const { getTCROBalance, getERC20Balance } = await import('@/lib/wallet');
+            const { CONTRACTS } = await import('../../../../lib/config');
+            const { getTCROBalance, getERC20Balance } = await import('../../../../lib/wallet');
 
             // Parallel fetch
             const [tcroBal, usdcBal] = await Promise.all([

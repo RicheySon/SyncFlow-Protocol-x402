@@ -14,9 +14,9 @@ import {
     BarChart3,
     Settings
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import {
     Table,
     TableBody,
@@ -24,8 +24,8 @@ import {
     TableHead,
     TableHeader,
     TableRow
-} from '@/components/ui/table';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+} from '../../components/ui/table';
+import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import {
     XAxis,
     YAxis,
@@ -35,7 +35,7 @@ import {
     AreaChart,
     Area
 } from 'recharts';
-import { agentsApi } from '@/lib/api/agents';
+import { agentsApi } from '../../lib/api/agents';
 import Link from 'next/link';
 
 export default function DashboardPage() {

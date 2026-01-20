@@ -1,8 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DiscordLoader } from '@/components/ui/discord-loader';
+import { Button } from '../../components/ui/button';
+import { DiscordLoader } from '../../components/ui/discord-loader';
 
 export default function DiscordPage() {
     return (

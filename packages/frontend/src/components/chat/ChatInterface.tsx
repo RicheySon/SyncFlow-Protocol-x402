@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Send, Bot, User, Loader2, Sparkles, Trash2, ArrowRight, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { sendTCRODeposit, getExplorerTxLink } from '@/lib/wallet';
+import { cn } from '../../lib/utils';
+import { sendTCRODeposit, getExplorerTxLink } from '../../lib/wallet';
 
 interface Message {
     id: string;
@@ -95,7 +95,7 @@ export function ChatInterface() {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3001/chat', {
+            const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: userMessage.content })
@@ -149,8 +149,8 @@ export function ChatInterface() {
         setTxLoading(msg.id);
         try {
             // Dynamically import helpers
-            const { sendTCRODeposit, sendERC20Token } = await import('@/lib/wallet');
-            const { CONTRACTS } = await import('@/lib/config');
+            const { sendTCRODeposit, sendERC20Token } = await import('../../lib/wallet');
+            const { CONTRACTS } = await import('../../lib/config');
 
             let result;
 

@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("user") // "user" | "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  agents    Agent[]
+  workflows Workflow[]
+}
+
+model Agent {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  type        String   // "invest", "trade", "research"
+  status      String   @default("active") // "active", "paused", "error"
+  config      String   // JSON string of agent configuration
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  walletAddress    String? // EVM Wallet Address
+  walletPrivateKey String? // Encrypted Private Key (Simplification for Hackathon: Plaintext)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  transactions Transaction[]
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  status      String   @default("draft") // "draft", "active", "completed"
+  steps       String   // JSON string of workflow steps
+  trigger     String?  // Trigger condition
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  txHash      String   @unique
+  network     String   @default("cronos_evm")
+  type        String   // "swap", "transfer", "stake"
+  status      String   // "pending", "success", "failed"
+  amount      String?
+  token       String?
+  agentId     String?
+  agent       Agent?   @relation(fields: [agentId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
