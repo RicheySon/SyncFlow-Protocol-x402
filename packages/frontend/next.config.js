@@ -7,8 +7,13 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
-    // swcMinify: true,
-    // output: 'standalone',
+    experimental: {
+        serverActions: {
+            bodySizeLimit: '2mb',
+        },
+    },
+    // Disable all static optimization
+    output: undefined,
     images: {
         domains: ['localhost'],
     },
