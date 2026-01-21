@@ -93,6 +93,7 @@ export class SyncFlowClient {
             // Note: In prod, use proper units util
 
             // Simple Transfer
+            console.log(`Sending Transaction -> To: ${option.payTo}, Value: ${amount.toString()}`);
             const tx = await this.signer.sendTransaction({
                 to: option.payTo,
                 value: amount

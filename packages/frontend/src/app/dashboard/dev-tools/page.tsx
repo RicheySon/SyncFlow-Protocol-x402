@@ -83,10 +83,36 @@ export default function DevToolsPage() {
                 return;
             }
 
-            // 2. Connect Wallet
+            // 2. Connect Wallet & Switch Network
             addLog('🔌 Connecting to Wallet...');
             const provider = new ethers.BrowserProvider((window as any).ethereum);
             await provider.send("eth_requestAccounts", []);
+
+            addLog('twistednet: Switching to Cronos...');
+            try {
+                await provider.send("wallet_switchEthereumChain", [{ chainId: "0x152" }]); // 338
+            } catch (switchError: any) {
+                // This error code indicates that the chain has not been added to MetaMask.
+                if (switchError.code === 4902) {
+                    try {
+                        await provider.send("wallet_addEthereumChain", [{
+                            chainId: "0x152",
+                            chainName: "Cronos Testnet",
+                            rpcUrls: ["https://evm-t3.cronos.org"],
+                            nativeCurrency: {
+                                name: "TCRO",
+                                symbol: "TCRO",
+                                decimals: 18
+                            },
+                            blockExplorerUrls: ["https://cronos.org/explorer/testnet3"]
+                        }]);
+                    } catch (addError) {
+                        throw new Error('Failed to add Cronos network');
+                    }
+                }
+                // handle other specific errors or strict ignoring
+            }
+
             const signer = await provider.getSigner();
             addLog(`✅ Connected: ${await signer.getAddress()}`);
 
