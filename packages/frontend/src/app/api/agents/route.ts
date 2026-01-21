@@ -1,62 +1,66 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getUserIdFromRequest } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
-const MOCK_AGENTS = [
-    {
-        id: 'agent-1',
-        name: 'Alpha Trading Bot',
-        description: 'High-frequency arbitrage bot on Cronos',
-        type: 'trade',
-        status: 'active',
-        config: '{}',
-        userId: 'user-1',
-        walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    },
-    {
-        id: 'agent-2',
-        name: 'DAO Governance Assistant',
-        description: 'Automated proposal analysis and voting',
-        type: 'dao',
-        status: 'paused',
-        config: '{}',
-        userId: 'user-1',
-        walletAddress: '0x21E205e2C45417E81d39F28183cA0BA1493ACeee',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date().toISOString(),
-    }
-];
+export async function GET(request: Request) {
+    try {
+        const userId = getUserIdFromRequest(request);
 
-export async function GET() {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return NextResponse.json(MOCK_AGENTS);
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const agents = await prisma.agent.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                transactions: {
+                    take: 5,
+                    orderBy: { createdAt: 'desc' },
+                }
+            }
+        });
+
+        return NextResponse.json(agents);
+    } catch (error) {
+        console.error('Get Agents Error:', error);
+        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    }
 }
 
 export async function POST(request: Request) {
     try {
+        const userId = getUserIdFromRequest(request);
+
+        if (!userId) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
         const data = await request.json();
 
         // Validate
-        if (!data.name) {
-            return NextResponse.json({ message: 'Name is required' }, { status: 400 });
+        if (!data.name || !data.type) {
+            return NextResponse.json({ message: 'Name and Type are required' }, { status: 400 });
         }
 
-        const newAgent = {
-            id: 'agent-' + Math.random().toString(36).substr(2, 9),
-            ...data,
-            status: 'active',
-            userId: 'user-1',
-            walletAddress: '0x' + Math.random().toString(16).substr(2, 40),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
+        const newAgent = await prisma.agent.create({
+            data: {
+                name: data.name,
+                description: data.description,
+                type: data.type,
+                status: 'active',
+                config: data.config || '{}',
+                userId: userId,
+                // Mock wallet for now if not provided, or logic to generate one
+                walletAddress: '0x' + Math.random().toString(16).substr(2, 40),
+            },
+        });
 
-        // Note: This won't persist in serverless, but returns success for UI feedback
         return NextResponse.json(newAgent);
     } catch (err) {
+        console.error('Create Agent Error:', err);
         return NextResponse.json({ message: 'Invalid request' }, { status: 400 });
     }
 }
