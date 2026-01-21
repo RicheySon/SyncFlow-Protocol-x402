@@ -15,18 +15,41 @@ export interface WalletState {
 }
 
 /**
+ * Helper to find MetaMask provider from window.ethereum
+ */
+function getMetaMaskProvider() {
+    if (!window.ethereum) return null;
+
+    // If multiple providers are injected (EIP-6963 style or legacy array)
+    if ((window.ethereum as any).providers) {
+        const provider = (window.ethereum as any).providers.find((p: any) => p.isMetaMask);
+        if (provider) return provider;
+    }
+
+    // If single provider and it is MetaMask
+    if (window.ethereum.isMetaMask) {
+        return window.ethereum;
+    }
+
+    // Fallback: Return window.ethereum if it exists (might be Hot Wallet, but we try)
+    return window.ethereum;
+}
+
+/**
  * Connect to MetaMask wallet
  */
 export async function connectWallet(): Promise<WalletState> {
-    if (!window.ethereum) {
+    const providerInstance = getMetaMaskProvider();
+
+    if (!providerInstance) {
         throw new Error('MetaMask not installed. Please install MetaMask to continue.');
     }
 
     try {
-        const provider = new BrowserProvider(window.ethereum);
+        const provider = new BrowserProvider(providerInstance);
 
         // Request account access
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        await providerInstance.request({ method: 'eth_requestAccounts' });
 
         const signer = await provider.getSigner();
         const address = await signer.getAddress();

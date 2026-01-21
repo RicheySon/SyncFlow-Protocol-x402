@@ -1469,6 +1469,18 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
                         <DepositModal />
                         <KeysModal agent={null} />
                     </div>
+
+                    <Button
+                        variant="ghost"
+                        className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                            if (confirm('To disconnect completely, please also disconnect in your MetaMask extension. Reloading now...')) {
+                                window.location.reload();
+                            }
+                        }}
+                    >
+                        <LogOut className="mr-2 h-4 w-4" /> Disconnect Wallet
+                    </Button>
                 </div>
             </CardContent>
         </Card>
