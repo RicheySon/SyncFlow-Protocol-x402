@@ -43,23 +43,27 @@ export class SyncFlowClient {
                     try {
                         console.log('🔒 402 Payment Challenge user intercepted. Handling payment...');
                         const challenge = error.response.data as PaymentChallenge;
+                        const option = challenge.accepts[0];
 
-                        // 1. Execute Payment on Blockchain
-                        const paymentProof = await this.handleBlockchainPayment(challenge);
+                        // 1. Execute Payment on Blockchain (Standard Tx)
+                        console.log(`💸 Signing Payment of ${option.maxAmountRequired} to ${option.payTo}...`);
+                        const txHash = await this.handleBlockchainPayment(challenge);
+                        console.log(`✅ Payment Sent. Hash: ${txHash}`);
 
                         // 2. Settle Payment with Backend
-                        // Backend expects: { paymentId, paymentHeader, paymentRequirements }
-                        const option = challenge.accepts[0];
+                        // We send the txHash as proof
                         await this.api.post('/payment/settle', {
                             paymentId: option.extra.paymentId,
-                            paymentHeader: paymentProof, // For ExactEvmScheme, this is the txHash (or encoded)
-                            paymentRequirements: option // Pass back the requirements provided
+                            txHash: txHash,
+                            chainId: option.network === 'cronos' ? 338 : 338 // Default to Cronos Testnet
                         });
 
-                        // 3. Retry Original Request with Payment ID
+                        // 3. Retry Original Request with Payment Proof
                         if (!originalRequest.headers) {
                             originalRequest.headers = new axios.AxiosHeaders();
                         }
+                        // Use the TxHash as the proof of payment in the retry
+                        originalRequest.headers['x-payment-proof'] = txHash;
                         originalRequest.headers['x-payment-id'] = option.extra.paymentId;
 
                         console.log('✅ Payment Settled. Retrying request...');
@@ -67,16 +71,7 @@ export class SyncFlowClient {
 
                     } catch (payErr: any) {
                         console.error('❌ Payment Failed:', payErr);
-
-                        let detail = payErr.message;
-                        if (payErr.response && payErr.response.data) {
-                            const serverData = typeof payErr.response.data === 'object'
-                                ? JSON.stringify(payErr.response.data)
-                                : payErr.response.data;
-                            detail += ` | Server: ${serverData}`;
-                        }
-
-                        return Promise.reject(new Error(`Payment Failed: ${detail}`));
+                        return Promise.reject(new Error(`Payment Failed: ${payErr.message}`));
                     }
                 }
 
@@ -90,37 +85,26 @@ export class SyncFlowClient {
      */
     private async handleBlockchainPayment(challenge: PaymentChallenge): Promise<string> {
         if (!this.signer) throw new Error("No signer available");
-
-        // Use the first payment option
         const option: PaymentOption = challenge.accepts[0];
 
-        // Use the official Facilitator client to generate the payment header (proof)
-        // This handles EIP-3009 (Transfer with Authorization) or standard transfers as required
         try {
-            // Import dynamically or assume it's available since it's a dependency
-            const { Facilitator } = await import('@crypto.com/facilitator-client');
+            // Parse Amount (Assuming string '0.01')
+            const amount = BigInt(Math.floor(parseFloat(option.maxAmountRequired) * 1e18)); // Assuming 18 decimals (TCRO)
+            // Note: In prod, use proper units util
 
-            const facilitator = new Facilitator({ network: option.network as any }); // Cast network to avoid simple string type issues
-
-            console.log(`💸 Generating Payment Header via Facilitator for ${option.maxAmountRequired} units to ${option.payTo}...`);
-
-            const paymentHeader = await facilitator.generatePaymentHeader({
+            // Simple Transfer
+            const tx = await this.signer.sendTransaction({
                 to: option.payTo,
-                value: option.maxAmountRequired,
-                asset: option.asset,
-                signer: this.signer,
-                validBefore: Math.floor(Date.now() / 1000) + (option.maxTimeoutSeconds || 300),
-                validAfter: 0
-            } as any);
+                value: amount
+            });
 
-            console.log('✅ Payment Header Generated:', paymentHeader);
-            return paymentHeader;
+            console.log('Transaction sent:', tx.hash);
+            await tx.wait(); // Wait for confirmation
+            return tx.hash;
 
         } catch (error: any) {
-            console.error('Failed to generate payment header:', error);
-            // Fallback to manual transfer ONLY if Facilitator fails (unlikely if setup is correct)
-            // But usually, we should just throw
-            throw new Error(`Facilitator Error: ${error.message}`);
+            console.error('Blockchain payment error:', error);
+            throw new Error(`Tx Error: ${error.message}`);
         }
     }
 }
