@@ -12,6 +12,7 @@ const nextConfig = {
             bodySizeLimit: '2mb',
         },
     },
+    transpilePackages: ['syncflow-protocol-sdk-demo'],
     // Disable all static optimization
     output: undefined,
     images: {

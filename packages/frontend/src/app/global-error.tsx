@@ -11,17 +11,9 @@ export default function GlobalError({
 }) {
     return (
         <html>
-            <body>
-                <div className="flex flex-col items-center justify-center min-h-screen text-center px-4">
-                    <h2 className="text-3xl font-bold tracking-tight mb-4">Something went wrong!</h2>
-                    <p className="text-muted-foreground mb-8">Global Error</p>
-                    <button
-                        onClick={() => reset()}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-black text-white px-4 py-2"
-                    >
-                        Try again
-                    </button>
-                </div>
+            <body style={{ padding: '40px', textAlign: 'center', color: 'white', background: '#000' }}>
+                <h1>Global Application Error</h1>
+                <button onClick={() => reset()}>Try again</button>
             </body>
         </html>
     );

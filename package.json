@@ -24,6 +24,7 @@
     "workspaces": [
         "packages/*"
     ],
+    "packageManager": "npm@10.2.3",
     "dependencies": {
         "dotenv": "^17.2.3"
     }
