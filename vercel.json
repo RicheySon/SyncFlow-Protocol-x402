@@ -2,5 +2,5 @@
     "buildCommand": "turbo run build --filter=@syncflow/frontend",
     "outputDirectory": "packages/frontend/.next",
     "installCommand": "npm install",
-    "framework": null
+    "framework": "nextjs"
 }
