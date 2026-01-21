@@ -53,7 +53,12 @@ export async function apiClient<T>(
         headers['Authorization'] = `Bearer ${token}` as string;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    // Handle relative path for Unified Deployment
+    const baseUrl = API_BASE_URL.startsWith('/')
+        ? `${window.location.origin}${API_BASE_URL}`
+        : API_BASE_URL;
+
+    const response = await fetch(`${baseUrl}${endpoint}`, {
         ...options,
         headers,
     });
