@@ -19,7 +19,8 @@ import {
     Lock,
     Zap,
     CheckCircle2,
-    Key
+    Key,
+    LogOut
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../../../components/ui/card';
