@@ -1122,31 +1122,56 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
     // Transaction state
     const [transactions, setTransactions] = useState<any[]>([]);
 
-    // NEW: Load transactions from localStorage
+    // NEW: Load transactions from API
     useEffect(() => {
-        const storedTxs = localStorage.getItem(`syncflow_transactions_${params.id}`);
-        if (storedTxs) {
+        const fetchTransactions = async () => {
+            if (!params.id) return;
             try {
-                setTransactions(JSON.parse(storedTxs));
-            } catch (e) {
-                console.error('Failed to parse stored transactions', e);
+                const data = await apiClient<any[]>(`/transactions/agent/${params.id}`);
+                const formattedTxs = data.map((tx: any) => ({
+                    id: tx.id,
+                    type: tx.type,
+                    status: tx.status,
+                    amount: `${tx.amount} ${tx.token || 'TCRO'}`,
+                    date: tx.createdAt,
+                    recipients: 1
+                }));
+                setTransactions(formattedTxs);
+            } catch (err) {
+                console.error('Failed to load transactions:', err);
             }
-        }
+        };
+        fetchTransactions();
     }, [params.id]);
 
     // NEW: Function to add transaction
-    const addTransaction = (txHash: string, amount: number, recipientsCount: number) => {
-        const newTx = {
-            id: txHash,
-            type: 'Batch Payment',
-            status: 'Success',
-            amount: `${amount.toFixed(2)} TCRO`,
-            date: new Date().toISOString(), // Store actual date
-            recipients: recipientsCount
-        };
-        const updatedTxs = [newTx, ...transactions];
-        setTransactions(updatedTxs);
-        localStorage.setItem(`syncflow_transactions_${params.id}`, JSON.stringify(updatedTxs));
+    const addTransaction = async (txHash: string, amount: number, recipientsCount: number) => {
+        try {
+            await apiClient('/transactions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    txHash,
+                    amount,
+                    agentId: params.id,
+                    type: recipientsCount > 1 ? 'Batch Payment' : 'Payment',
+                    status: 'success',
+                    token: 'TCRO'
+                }),
+            });
+            // Refresh transactions list
+            const updatedTxs = await apiClient<any[]>(`/transactions/agent/${params.id}`);
+            const formattedTxs = updatedTxs.map((tx: any) => ({
+                id: tx.id,
+                type: tx.type,
+                status: tx.status,
+                amount: `${tx.amount} ${tx.token}`,
+                date: tx.createdAt,
+                recipients: 1 // Simplified
+            }));
+            setTransactions(formattedTxs);
+        } catch (error) {
+            console.error('Failed to save transaction:', error);
+        }
     };
 
     if (loading) {
