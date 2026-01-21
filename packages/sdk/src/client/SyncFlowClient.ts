@@ -100,7 +100,7 @@ export class SyncFlowClient {
             });
 
             console.log('Transaction sent:', tx.hash);
-            await tx.wait(); // Wait for confirmation
+            // await tx.wait(); // SKIP WAIT to support "Hot Wallet" and other read-flakey providers
             return tx.hash;
 
         } catch (error: any) {

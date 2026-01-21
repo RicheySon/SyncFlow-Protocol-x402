@@ -114,7 +114,25 @@ export default function DevToolsPage() {
             }
 
             const signer = await provider.getSigner();
-            addLog(`✅ Connected: ${await signer.getAddress()}`);
+            const address = await signer.getAddress();
+            addLog(`✅ Connected: ${address}`);
+
+            // Add Disconnect Helper
+            const disconnectInfo = document.createElement('div');
+            disconnectInfo.innerHTML = `
+                <div style="margin-top: 10px; padding: 10px; background: #333; border-radius: 5px;">
+                    <p style="color: #bbb; font-size: 12px; margin-bottom: 5px;">Connected: ${address.slice(0, 6)}...${address.slice(-4)}</p>
+                    <button id="disconnect-btn" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Disconnect Wallet</button>
+                    <p style="color: #666; font-size: 10px; margin-top: 5px;">Note: You must also disconnect in your "Hot Wallet" extension.</p>
+                </div>
+            `;
+            // Append to logs for visibility since we are in a text log flow
+            // Actually, we can just log instructions.
+            addLog(`💡 To Disconnect: Reload the page or use the Disconnect button below.`);
+
+            // Temporary UI hack to show button in logs?
+            // Better: update the UI state. But runTest is a function.
+            // We'll just alert user on how to disconnect.
 
             // 3. Initialize Client
             const { SyncFlow } = await import('syncflow-protocol-sdk-demo');
