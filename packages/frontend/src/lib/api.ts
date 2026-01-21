@@ -1,6 +1,7 @@
 // Base API client configuration
 // Base API client configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+// Base API client configuration
+const API_BASE_URL = '/api'; // Hardcoded for Unified Vercel Deployment to prevent localhost pollution
 
 // Token management
 export const TokenManager = {
