@@ -15,23 +15,47 @@ export interface WalletState {
 }
 
 /**
- * Helper to find MetaMask provider from window.ethereum
+ * Helper to find MetaMask provider using EIP-6963 or Legacy checks
  */
-function getMetaMaskProvider() {
-    if (!window.ethereum) return null;
+async function getMetaMaskProvider(): Promise<any> {
+    // 1. Try EIP-6963 (Standard)
+    if (typeof window !== 'undefined') {
+        const foundProvider = await new Promise<any>((resolve) => {
+            const handleAnnounce = (event: any) => {
+                const { info, provider } = event.detail;
+                if (info.rdns === 'io.metamask') {
+                    window.removeEventListener("eip6963:announceProvider", handleAnnounce);
+                    resolve(provider);
+                }
+            };
 
-    // If multiple providers are injected (EIP-6963 style or legacy array)
-    if ((window.ethereum as any).providers) {
+            window.addEventListener("eip6963:announceProvider", handleAnnounce);
+            window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+            // Short timeout to wait for announcement
+            setTimeout(() => {
+                window.removeEventListener("eip6963:announceProvider", handleAnnounce);
+                resolve(null);
+            }, 500); // 500ms usually enough for local injection
+        });
+
+        if (foundProvider) return foundProvider;
+    }
+
+    // 2. Try Legacy window.ethereum.providers (e.g. Coinbase + MetaMask co-existing)
+    if (window.ethereum && (window.ethereum as any).providers) {
         const provider = (window.ethereum as any).providers.find((p: any) => p.isMetaMask);
         if (provider) return provider;
     }
 
-    // If single provider and it is MetaMask
-    if (window.ethereum.isMetaMask) {
+    // 3. Try Legacy window.ethereum DIRECTLY (Standard single wallet)
+    if (window.ethereum && window.ethereum.isMetaMask) {
         return window.ethereum;
     }
 
-    // Fallback: Return window.ethereum if it exists (might be Hot Wallet, but we try)
+    // 4. Fallback (DANGEROUS: might return Hot Wallet or others)
+    // We only return this if we are desperate, but user specifically said "doesn't call meta mask".
+    // If we are here, we probably didn't find "isMetaMask" flag.
     return window.ethereum;
 }
 
@@ -39,7 +63,7 @@ function getMetaMaskProvider() {
  * Connect to MetaMask wallet
  */
 export async function connectWallet(): Promise<WalletState> {
-    const providerInstance = getMetaMaskProvider();
+    const providerInstance = await getMetaMaskProvider();
 
     if (!providerInstance) {
         throw new Error('MetaMask not installed. Please install MetaMask to continue.');
