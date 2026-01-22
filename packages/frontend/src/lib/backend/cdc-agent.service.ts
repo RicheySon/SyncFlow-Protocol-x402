@@ -68,7 +68,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
 
         try {
             if (this.activeAI === 'gemini' && this.gemini) {
-                const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+                const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
                 const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                 const response = await result.response;
                 return response.text();
@@ -91,7 +91,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 return `⚠️ [AI Quota Exceeded]: Please check your Gemini/OpenAI billing or rate limits.`;
             }
             console.error(`${this.activeAI} error:`, error.message);
-            return `[AI Service Error]: ${error.message}. Using fallback knowledge base.`;
+            return `[AI Service Error] [v2]: ${error.message}. Using fallback knowledge base.`;
         }
     }
 
@@ -119,6 +119,10 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
 
             if (lowerMessage.includes('what is btc') || lowerMessage.includes('whats btc') || lowerMessage.includes('what is bitcoin')) {
                 return "Bitcoin (BTC) is the first decentralized cryptocurrency, a digital asset which uses cryptography to secure its transactions. While SyncFlow focus is on Cronos (CRO) and L402 protocols, BTC remains the 'digital gold' of the industry.";
+            }
+
+            if (lowerMessage.includes('what is cronos') || lowerMessage.includes('whats cronos')) {
+                return "Cronos is the leading Ethereum-compatible layer 1 blockchain network built on the Cosmos SDK, supported by Crypto.com. It's designed to scale the DeFi, GameFi, and NFT ecosystems by providing developers with instant porting of apps and smart contracts.";
             }
 
             if (this.activeAI !== 'none') {
