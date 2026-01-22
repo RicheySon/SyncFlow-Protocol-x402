@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Send, Bot, User, Loader2, Sparkles, Trash2, ArrowRight, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { sendTCRODeposit, getExplorerTxLink } from '../../lib/wallet';
+import { TokenManager } from '../../lib/api';
 
 interface Message {
     id: string;
@@ -41,23 +42,37 @@ export function ChatInterface() {
     const [isLoaded, setIsLoaded] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Load messages from localStorage on mount
+    // Load messages from Database on mount
     useEffect(() => {
-        const savedMessages = localStorage.getItem('chat_history');
-        if (savedMessages) {
-            try {
-                setMessages(JSON.parse(savedMessages));
-            } catch (e) {
-                console.error('Failed to parse chat history', e);
+        const fetchHistory = async () => {
+            const token = TokenManager.getToken();
+            if (!token) {
+                setIsLoaded(true);
+                return;
             }
-        }
-        setIsLoaded(true);
+
+            try {
+                const response = await fetch('/api/chat/history', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.messages && data.messages.length > 0) {
+                    setMessages(data.messages);
+                }
+            } catch (e) {
+                console.error('Failed to fetch chat history', e);
+            } finally {
+                setIsLoaded(true);
+            }
+        };
+
+        fetchHistory();
     }, []);
 
-    // Save messages whenever they change
+    // Scroll to bottom whenever messages change
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem('chat_history', JSON.stringify(messages));
+            scrollToBottom();
         }
     }, [messages, isLoaded]);
 
@@ -69,7 +84,19 @@ export function ChatInterface() {
         scrollToBottom();
     }, [messages]);
 
-    const clearChat = () => {
+    const clearChat = async () => {
+        const token = TokenManager.getToken();
+        if (token) {
+            try {
+                await fetch('/api/chat/history', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (e) {
+                console.error('Failed to clear chat history', e);
+            }
+        }
+
         const initialMessage: Message = {
             id: 'welcome',
             role: 'agent',
@@ -77,7 +104,6 @@ export function ChatInterface() {
             timestamp: new Date().toISOString()
         };
         setMessages([initialMessage]);
-        localStorage.removeItem('chat_history');
     };
 
     const handleSend = async () => {
@@ -95,9 +121,13 @@ export function ChatInterface() {
         setLoading(true);
 
         try {
+            const token = TokenManager.getToken();
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({ message: userMessage.content })
             });
             const data = await response.json();

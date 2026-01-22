@@ -18,6 +18,16 @@ model User {
   
   agents    Agent[]
   workflows Workflow[]
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String   // "user" | "agent"
+  content   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
 
 model Agent {
