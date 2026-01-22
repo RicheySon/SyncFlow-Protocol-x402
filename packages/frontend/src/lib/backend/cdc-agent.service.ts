@@ -110,8 +110,16 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             }
 
             if (lowerMessage.includes('latest block') || lowerMessage.includes('current block')) {
-                const response = await Block.getBlockByTag('latest');
-                return `Latest Block Information:\n${JSON.stringify(response.data, null, 2)}`;
+                // Add 5s timeout to prevent hanging
+                const blockPromise = Block.getBlockByTag('latest');
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching block')), 5000));
+
+                try {
+                    const response = await Promise.race([blockPromise, timeoutPromise]) as any;
+                    return `Latest Block Information:\n${JSON.stringify(response.data, null, 2)}`;
+                } catch (e) {
+                    return `Failed to fetch block info: ${(e as Error).message}. Check RPC connection.`;
+                }
             }
 
             const addressMatch = message.match(/0x[a-fA-F0-9]{38,42}/);
@@ -153,6 +161,10 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                     },
                     message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
                 });
+            }
+
+            if (lowerMessage.includes('date') || lowerMessage.includes('today')) {
+                return `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
             }
 
             if (aiResponse) return aiResponse;
