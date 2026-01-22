@@ -29,15 +29,22 @@ export class CdcAgentService {
                 console.log('✅ Crypto.com Developer Platform Client initialized');
             }
 
-            // AI Providers
+            // AI Providers Initialization
+            if (OPENAI_KEY) {
+                this.openai = new OpenAI({ apiKey: OPENAI_KEY });
+                console.log('✅ OpenAI Client initialized (User Provided)');
+            }
+
             if (GEMINI_KEY) {
                 this.gemini = new GoogleGenerativeAI(GEMINI_KEY);
-                this.activeAI = 'gemini';
-                console.log('✅ Google Gemini AI initialized (FREE tier)');
-            } else if (OPENAI_KEY) {
-                this.openai = new OpenAI({ apiKey: OPENAI_KEY });
+                console.log('✅ Google Gemini AI initialized (Fallback/Provided)');
+            }
+
+            // Prefer OpenAI if available as it's often more stable for current SDK config
+            if (this.openai) {
                 this.activeAI = 'openai';
-                console.log('✅ OpenAI Client initialized');
+            } else if (this.gemini) {
+                this.activeAI = 'gemini';
             }
 
             this.initialized = !!CDC_KEY;
@@ -66,33 +73,43 @@ You can help users:
 
 Respond conversationally. If a user asks for blockchain data but doesn't provide required info (like an address), politely ask for it.`;
 
-        try {
-            if (this.activeAI === 'gemini' && this.gemini) {
-                const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
-                const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
-                const response = await result.response;
-                return response.text();
-            } else if (this.activeAI === 'openai' && this.openai) {
-                const completion = await this.openai.chat.completions.create({
-                    model: 'gpt-3.5-turbo',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: message }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 300
-                });
-                return completion.choices[0]?.message?.content || '';
-            }
+        // Attempt Failover Logic
+        const providers = this.openai && this.gemini ? ['openai', 'gemini'] :
+            this.openai ? ['openai'] :
+                this.gemini ? ['gemini'] : [];
 
-            return '';
-        } catch (error: any) {
-            if (error.code === 'insufficient_quota' || error.status === 429) {
-                return `⚠️ [AI Quota Exceeded]: Please check your Gemini/OpenAI billing or rate limits.`;
+        // Ensure we try the active one first
+        const sortedProviders = providers.sort((a) => a === this.activeAI ? -1 : 1);
+
+        for (const provider of sortedProviders) {
+            try {
+                if (provider === 'gemini' && this.gemini) {
+                    // Try a more specific version to resolve 404s
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash-002' });
+                    const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
+                    return result.response.text();
+                } else if (provider === 'openai' && this.openai) {
+                    const completion = await this.openai.chat.completions.create({
+                        model: 'gpt-3.5-turbo',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: message }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 300
+                    });
+                    return completion.choices[0]?.message?.content || '';
+                }
+            } catch (err: any) {
+                console.error(`${provider} AI error:`, err.message);
+                if (err.code === 'insufficient_quota' || err.status === 429) {
+                    return `⚠️ [AI Quota Exceeded]: Please check your ${provider} billing or rate limits.`;
+                }
+                // Continue to next provider if available
             }
-            console.error(`${this.activeAI} error:`, error.message);
-            return `[AI Service Error] [v2]: ${error.message}. Using fallback knowledge base.`;
         }
+
+        return `[AI Service Error] [v3]: Both AI providers failed or are unavailable. Using fallback knowledge base.`;
     }
 
     async processMessage(message: string, _context?: any): Promise<string> {
@@ -123,6 +140,14 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
 
             if (lowerMessage.includes('what is cronos') || lowerMessage.includes('whats cronos')) {
                 return "Cronos is the leading Ethereum-compatible layer 1 blockchain network built on the Cosmos SDK, supported by Crypto.com. It's designed to scale the DeFi, GameFi, and NFT ecosystems by providing developers with instant porting of apps and smart contracts.";
+            }
+
+            if (lowerMessage.includes('what is sui') || lowerMessage.includes('whats sui') || lowerMessage.includes('$sui')) {
+                return "Sui is a high-performance Layer 1 blockchain and smart contract platform designed to make digital asset ownership fast, private, secure, and accessible to everyone. It uses the Move programming language for efficient, parallel execution of transactions.";
+            }
+
+            if (lowerMessage.includes('what is eth') || lowerMessage.includes('whats ethereum') || lowerMessage.includes('$eth')) {
+                return "Ethereum (ETH) is a decentralized, open-source blockchain with smart contract functionality. It is the second-largest cryptocurrency by market cap and the foundation for much of DeFi and NFTs. Cronos is fully EVM-compatible with Ethereum!";
             }
 
             if (this.activeAI !== 'none') {
@@ -183,8 +208,6 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                     message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
                 });
             }
-
-
 
             if (aiResponse) return aiResponse;
 
