@@ -105,6 +105,11 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             const lowerMessage = message.toLowerCase();
             let aiResponse = '';
 
+            // 1. Immediate Local Checks (Fast Path)
+            if (lowerMessage.includes('date') || lowerMessage.includes('today')) {
+                return `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
+            }
+
             if (this.activeAI !== 'none') {
                 aiResponse = await this.getAIResponse(message);
             }
@@ -163,9 +168,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 });
             }
 
-            if (lowerMessage.includes('date') || lowerMessage.includes('today')) {
-                return `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
-            }
+
 
             if (aiResponse) return aiResponse;
 
