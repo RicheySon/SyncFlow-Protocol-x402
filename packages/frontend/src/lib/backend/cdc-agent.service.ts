@@ -88,11 +88,10 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             return '';
         } catch (error: any) {
             if (error.code === 'insufficient_quota' || error.status === 429) {
-                console.warn(`⚠️ ${this.activeAI} quota/rate limit exceeded`);
-                return '';
+                return `⚠️ [AI Quota Exceeded]: Please check your Gemini/OpenAI billing or rate limits.`;
             }
             console.error(`${this.activeAI} error:`, error.message);
-            return '';
+            return `[AI Service Error]: ${error.message}. Using fallback knowledge base.`;
         }
     }
 
@@ -108,6 +107,18 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             // 1. Immediate Local Checks (Fast Path)
             if (lowerMessage.includes('date') || lowerMessage.includes('today')) {
                 return `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
+            }
+
+            if (lowerMessage === 'hi' || lowerMessage === 'hello' || lowerMessage === 'hey') {
+                return "Hello! I'm your SyncFlow AI Agent. How can I help you with the Cronos blockchain today?";
+            }
+
+            if (lowerMessage.includes('what is blockchain') || lowerMessage.includes('whats blockchain')) {
+                return "A blockchain is a decentralized, distributed ledger that records transactions across many computers so that the record cannot be altered retroactively without the alteration of all subsequent blocks and the consensus of the network. On Cronos, this allows for secure, transparent smart contracts!";
+            }
+
+            if (lowerMessage.includes('what is btc') || lowerMessage.includes('whats btc') || lowerMessage.includes('what is bitcoin')) {
+                return "Bitcoin (BTC) is the first decentralized cryptocurrency, a digital asset which uses cryptography to secure its transactions. While SyncFlow focus is on Cronos (CRO) and L402 protocols, BTC remains the 'digital gold' of the industry.";
             }
 
             if (this.activeAI !== 'none') {
