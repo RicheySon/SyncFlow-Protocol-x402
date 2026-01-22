@@ -40,45 +40,28 @@ export default function TransactionsPage() {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
-    // Load transactions from all agents
-    const loadTransactions = () => {
+    // Load transactions from API (Database)
+    const loadTransactions = async () => {
         setLoading(true);
         try {
-            const allTxs: any[] = [];
+            const { transactionsApi } = await import('../../../lib/api/transactions');
+            const data = await transactionsApi.getAll();
 
-            // 1. Scan localStorage for SyncFlow transactions
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                // Check if key is a transaction record
-                if (key && key.startsWith('syncflow_transactions_')) {
-                    const agentId = key.replace('syncflow_transactions_', '');
-                    try {
-                        const txs = JSON.parse(localStorage.getItem(key) || '[]');
+            // Normalize for UI
+            const formatted = data.map((tx: any) => ({
+                ...tx,
+                date: tx.createdAt,
+                agentId: tx.agentId || 'Unknown',
+                txHash: tx.txHash,
+                amount: tx.amount,
+                type: tx.type,
+                status: tx.status
+            }));
 
-                        // Add agentId to each transaction for context
-                        const taggedTxs = txs.map((tx: any) => ({
-                            ...tx,
-                            agentId: agentId,
-                            // Ensure date is parseable or fallback to now
-                            date: tx.date || new Date().toISOString(),
-                            // normalize structure if needed
-                            txHash: tx.id || tx.txHash,
-                            amount: tx.amount || '0',
-                            type: tx.type || 'Unknown'
-                        }));
-                        allTxs.push(...taggedTxs);
-                    } catch (err) {
-                        console.warn('Failed to parse transactions for key:', key);
-                    }
-                }
-            }
-
-            // 2. Sort by date descending (newest first)
-            allTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-            setTransactions(allTxs);
+            setTransactions(formatted);
         } catch (e) {
-            console.error("Failed to load transactions", e);
+            console.error("Failed to load transactions from DB", e);
+            // Fallback to empty or toast
         } finally {
             setLoading(false);
         }
@@ -86,11 +69,22 @@ export default function TransactionsPage() {
 
     useEffect(() => {
         loadTransactions();
-
-        // Listen for storage events (updates from other tabs)
-        window.addEventListener('storage', loadTransactions);
-        return () => window.removeEventListener('storage', loadTransactions);
     }, []);
+
+    const handleSync = async () => {
+        setLoading(true);
+        try {
+            const token = (await import('../../../lib/api')).TokenManager.getToken();
+            await fetch('/api/transactions/sync', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            await loadTransactions();
+        } catch (e) {
+            console.error('Sync failed', e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleRefresh = () => {
         loadTransactions();
@@ -118,8 +112,8 @@ export default function TransactionsPage() {
                     <Button variant="outline">
                         <Download className="mr-2 h-4 w-4" /> Export CSV
                     </Button>
-                    <Button variant="outline" onClick={handleRefresh}>
-                        <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+                    <Button variant="outline" onClick={handleSync} disabled={loading}>
+                        <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Sync Status
                     </Button>
                 </div>
             </div>
@@ -213,9 +207,15 @@ export default function TransactionsPage() {
                                                 {tx.amount}
                                             </td>
                                             <td className="px-4 py-4">
-                                                <div className="flex items-center gap-2 text-primary text-xs">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                                    Success
+                                                <div className={`flex items-center gap-2 text-xs ${tx.status === 'success' ? 'text-green-500' :
+                                                        tx.status === 'failed' ? 'text-destructive' :
+                                                            'text-primary animate-pulse'
+                                                    }`}>
+                                                    <div className={`h-1.5 w-1.5 rounded-full ${tx.status === 'success' ? 'bg-green-500' :
+                                                            tx.status === 'failed' ? 'bg-destructive' :
+                                                                'bg-primary'
+                                                        }`} />
+                                                    {tx.status?.charAt(0).toUpperCase() + tx.status?.slice(1) || 'Pending'}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4 text-right text-muted-foreground">

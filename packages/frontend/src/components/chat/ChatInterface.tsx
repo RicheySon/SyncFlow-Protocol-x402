@@ -198,10 +198,30 @@ export function ChatInterface() {
 
             const { hash } = result;
 
-            // Note: In a real app we might want to wait for confirmation, 
-            // but for UI responsiveness we show "Sent" immediately with hash.
+            // 1. Record in Database for backend tracking
+            try {
+                const token = TokenManager.getToken();
+                await fetch('/api/transactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify({
+                        txHash: hash,
+                        amount: msg.proposalData.amount,
+                        token: msg.proposalData.token,
+                        agentId: msg.proposalData.agentId || 'syncflow-agent',
+                        type: 'PAYMENT',
+                        status: 'pending'
+                    })
+                });
+            } catch (dbError) {
+                console.error("Failed to persist transaction to DB:", dbError);
+                // Non-fatal, we still show the hash to the user
+            }
 
-            // Update message status
+            // Update message status in UI
             setMessages(prev => prev.map(m =>
                 m.id === msg.id
                     ? { ...m, status: 'signed', txHash: hash }

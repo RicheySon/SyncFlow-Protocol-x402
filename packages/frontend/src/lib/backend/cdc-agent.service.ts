@@ -173,7 +173,8 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                         amount: amount,
                         token: "CRO",
                         protocol: "x402",
-                        quoteId: quote.quoteId
+                        quoteId: quote.quoteId,
+                        agentId: "syncflow-agent"
                     },
                     message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
                 });
