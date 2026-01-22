@@ -68,7 +68,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
 
         try {
             if (this.activeAI === 'gemini' && this.gemini) {
-                const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                const model = this.gemini.getGenerativeModel({ model: 'gemini-pro' });
                 const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                 const response = await result.response;
                 return response.text();
