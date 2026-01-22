@@ -74,18 +74,18 @@ You can help users:
 Respond conversationally. If a user asks for blockchain data but doesn't provide required info (like an address), politely ask for it.`;
 
         // Attempt Failover Logic
-        const providers = this.openai && this.gemini ? ['openai', 'gemini'] :
-            this.openai ? ['openai'] :
-                this.gemini ? ['gemini'] : [];
+        const providers: ('openai' | 'gemini')[] = [];
+        if (this.openai) providers.push('openai');
+        if (this.gemini) providers.push('gemini');
 
-        // Ensure we try the active one first
+        // Prioritize the currently activeAI
         const sortedProviders = providers.sort((a) => a === this.activeAI ? -1 : 1);
 
         for (const provider of sortedProviders) {
             try {
                 if (provider === 'gemini' && this.gemini) {
-                    // Try a more specific version to resolve 404s
-                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash-002' });
+                    // Try the latest stable flash model
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
                     const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                     return result.response.text();
                 } else if (provider === 'openai' && this.openai) {
@@ -102,14 +102,16 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 }
             } catch (err: any) {
                 console.error(`${provider} AI error:`, err.message);
+                // On quota error, we continue to next provider if available instead of failing immediately
                 if (err.code === 'insufficient_quota' || err.status === 429) {
-                    return `⚠️ [AI Quota Exceeded]: Please check your ${provider} billing or rate limits.`;
+                    console.warn(`${provider} quota exceeded, checking if failover is possible...`);
+                    continue;
                 }
-                // Continue to next provider if available
+                // For other errors, also try next provider
             }
         }
 
-        return `[AI Service Error] [v3]: Both AI providers failed or are unavailable. Using fallback knowledge base.`;
+        return `[AI Service Alert] [v4]: Primary AI providers currently hitting rate limits. Using localized blockchain knowledge base.`;
     }
 
     async processMessage(message: string, _context?: any): Promise<string> {
@@ -121,7 +123,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             const lowerMessage = message.toLowerCase();
             let aiResponse = '';
 
-            // 1. Immediate Local Checks (Fast Path)
+            // 1. Immediate Local Checks (Fast Path & Fallback)
             if (lowerMessage.includes('date') || lowerMessage.includes('today')) {
                 return `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
             }
@@ -130,8 +132,8 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 return "Hello! I'm your SyncFlow AI Agent. How can I help you with the Cronos blockchain today?";
             }
 
-            if (lowerMessage.includes('what is blockchain') || lowerMessage.includes('whats blockchain')) {
-                return "A blockchain is a decentralized, distributed ledger that records transactions across many computers so that the record cannot be altered retroactively without the alteration of all subsequent blocks and the consensus of the network. On Cronos, this allows for secure, transparent smart contracts!";
+            if (lowerMessage.includes('what is blockchain') || lowerMessage.includes('whats blockchain') || lowerMessage.includes('what is block')) {
+                return "A blockchain is a decentralized, distributed ledger that records transactions across many computers. On Cronos, this allows for secure, transparent smart contracts! Is there a specific block you're looking for? Try 'latest block'.";
             }
 
             if (lowerMessage.includes('what is btc') || lowerMessage.includes('whats btc') || lowerMessage.includes('what is bitcoin')) {
@@ -142,18 +144,15 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 return "Cronos is the leading Ethereum-compatible layer 1 blockchain network built on the Cosmos SDK, supported by Crypto.com. It's designed to scale the DeFi, GameFi, and NFT ecosystems by providing developers with instant porting of apps and smart contracts.";
             }
 
-            if (lowerMessage.includes('what is sui') || lowerMessage.includes('whats sui') || lowerMessage.includes('$sui')) {
+            if (lowerMessage.includes('what is sui') || lowerMessage.includes('whats sui') || lowerMessage.includes('sui')) {
                 return "Sui is a high-performance Layer 1 blockchain and smart contract platform designed to make digital asset ownership fast, private, secure, and accessible to everyone. It uses the Move programming language for efficient, parallel execution of transactions.";
             }
 
-            if (lowerMessage.includes('what is eth') || lowerMessage.includes('whats ethereum') || lowerMessage.includes('$eth')) {
+            if (lowerMessage.includes('what is eth') || lowerMessage.includes('whats ethereum') || lowerMessage.includes('eth')) {
                 return "Ethereum (ETH) is a decentralized, open-source blockchain with smart contract functionality. It is the second-largest cryptocurrency by market cap and the foundation for much of DeFi and NFTs. Cronos is fully EVM-compatible with Ethereum!";
             }
 
-            if (this.activeAI !== 'none') {
-                aiResponse = await this.getAIResponse(message);
-            }
-
+            // 2. Fetch Latest Block logic (Localized)
             if (lowerMessage.includes('latest block') || lowerMessage.includes('current block')) {
                 // Add 5s timeout to prevent hanging
                 const blockPromise = Block.getBlockByTag('latest');
@@ -167,6 +166,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 }
             }
 
+            // 3. Balance & Tx lookups (Localized)
             const addressMatch = message.match(/0x[a-fA-F0-9]{38,42}/);
             if ((lowerMessage.includes('balance') || lowerMessage.includes('wallet')) && addressMatch) {
                 const address = addressMatch[0];
@@ -181,6 +181,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 return `Transaction Details:\n${JSON.stringify(response.data, null, 2)}`;
             }
 
+            // 4. Transaction Proposals (Localized)
             const amountMatch = lowerMessage.match(/(\d+(\.\d+)?)\s*(cro|tcro)/i);
             const toAddressMatch = message.match(/0x[a-fA-F0-9]{40}/);
 
@@ -209,9 +210,14 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 });
             }
 
+            // 5. If it's none of the above, try AI
+            if (this.activeAI !== 'none') {
+                aiResponse = await this.getAIResponse(message);
+            }
+
             if (aiResponse) return aiResponse;
 
-            return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "tx 0x..." - View transaction details`;
+            return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "tx 0x..." - View transaction details\n• "send 0.1 CRO to 0x..." - Propose a payment`;
 
         } catch (error: any) {
             console.error('Error processing message:', error);
