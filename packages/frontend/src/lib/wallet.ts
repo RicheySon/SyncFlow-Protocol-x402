@@ -320,7 +320,7 @@ export async function deploySyncFlowAgent(
         const signer = await provider.getSigner();
 
         // Dynamically import ABI/Bytecode to avoid large bundle size if not used
-        const artifact = await import('../../abis/SyncFlowAgent.json');
+        const artifact = await import('../abis/SyncFlowAgent.json');
         const abi = artifact.abi;
         const bytecode = artifact.bytecode;
 
