@@ -2,16 +2,18 @@ import { Client, Wallet, Transaction, Block } from '@crypto.com/developer-platfo
 import { env } from '../config/env.js';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { X402Handler } from './core/x402/X402Handler';
 
 /**
  * SyncFlow AI Agent Service
- * Uses Crypto.com Developer Platform Client + AI (Gemini/OpenAI) for natural language blockchain queries
+ * Uses Crypto.com Developer Platform Client + AI (Gemini/OpenAI/Claude/Ollama) for natural language blockchain queries
  */
 export class CdcAgentService {
     private openai: OpenAI | null = null;
     private gemini: GoogleGenerativeAI | null = null;
-    private activeAI: 'gemini' | 'openai' | 'none' = 'none';
+    private anthropic: Anthropic | null = null;
+    private activeAI: 'gemini' | 'openai' | 'claude' | 'ollama' | 'none' = 'none';
     private initialized = false;
 
     constructor() {
@@ -33,15 +35,24 @@ export class CdcAgentService {
                 console.log('🔌 Provider URL (Forced):', providerUrl);
             }
 
-            // Prefer Gemini (FREE) over OpenAI
+            // Priority order: Gemini (FREE) > Claude (Anthropic) > OpenAI > Ollama (local)
             if (env.GEMINI_API_KEY) {
                 this.gemini = new GoogleGenerativeAI(env.GEMINI_API_KEY);
                 this.activeAI = 'gemini';
                 console.log('✅ Google Gemini AI initialized (FREE tier)');
+            } else if (env.ANTHROPIC_API_KEY) {
+                this.anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+                this.activeAI = 'claude';
+                console.log('✅ Anthropic Claude AI initialized');
             } else if (env.OPENAI_API_KEY) {
                 this.openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
                 this.activeAI = 'openai';
                 console.log('✅ OpenAI Client initialized');
+            } else if (env.OLLAMA_API_URL) {
+                this.activeAI = 'ollama';
+                console.log('✅ Ollama Local AI initialized');
+                console.log('🔌 Ollama URL:', env.OLLAMA_API_URL);
+                console.log('📦 Model:', env.OLLAMA_MODEL);
             } else {
                 console.log('⚠️  No AI provider configured - direct mode only');
             }
@@ -81,6 +92,17 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                 const response = await result.response;
                 return response.text();
+            } else if (this.activeAI === 'claude' && this.anthropic) {
+                const completion = await this.anthropic.messages.create({
+                    model: 'claude-3-5-sonnet-20241022',
+                    max_tokens: 300,
+                    system: systemPrompt,
+                    messages: [
+                        { role: 'user', content: message }
+                    ]
+                });
+                const textContent = completion.content.find(block => block.type === 'text');
+                return textContent && textContent.type === 'text' ? textContent.text : '';
             } else if (this.activeAI === 'openai' && this.openai) {
                 const completion = await this.openai.chat.completions.create({
                     model: 'gpt-3.5-turbo',
@@ -92,6 +114,24 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                     max_tokens: 300
                 });
                 return completion.choices[0]?.message?.content || '';
+            } else if (this.activeAI === 'ollama') {
+                // Use Ollama local model
+                const response = await fetch(`${env.OLLAMA_API_URL}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: env.OLLAMA_MODEL,
+                        prompt: `${systemPrompt}\n\nUser: ${message}`,
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ollama API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data.response || '';
             }
 
             return ''; // No AI available
@@ -209,8 +249,8 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
 
             // No AI available - provide direct command help
             const aiStatus = this.activeAI === 'none'
-                ? 'No AI provider configured. Add GEMINI_API_KEY (free) or OPENAI_API_KEY to .env for conversational mode.'
-                : `${this.activeAI === 'gemini' ? 'Gemini' : 'OpenAI'} temporarily unavailable.`;
+                ? 'No AI provider configured. Add GEMINI_API_KEY (free), ANTHROPIC_API_KEY, or OLLAMA_API_URL to .env for conversational mode.'
+                : `${this.activeAI === 'gemini' ? 'Gemini' : this.activeAI === 'claude' ? 'Claude' : this.activeAI === 'ollama' ? 'Ollama' : 'OpenAI'} temporarily unavailable.`;
 
             return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "tx 0x..." - View transaction details\n\n${aiStatus}`;
 

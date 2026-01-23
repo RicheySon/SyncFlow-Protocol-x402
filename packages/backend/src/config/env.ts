@@ -15,6 +15,9 @@ const envSchema = z.object({
     CDC_DASHBOARD_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    OLLAMA_API_URL: z.string().optional(),
+    OLLAMA_MODEL: z.string().default('llama2'),
     CDC_PROVIDER_URL: z.string().optional(),
 });
 
