@@ -93,19 +93,20 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         for (const provider of sortedProviders) {
             try {
                 if (provider === 'gemini' && this.gemini) {
-                    // Switch to 1.5-pro which is often more reliable for complex queries
-                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-pro' });
+                    // Upgrade to 1.5-flash for higher throughput and lower latency
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
                     const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                     return result.response.text();
                 } else if (provider === 'openai' && this.openai) {
+                    // Upgrade to gpt-4o-mini for better performance and cost-efficiency
                     const completion = await this.openai.chat.completions.create({
-                        model: 'gpt-3.5-turbo',
+                        model: 'gpt-4o-mini',
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: message }
                         ],
                         temperature: 0.7,
-                        max_tokens: 300
+                        max_tokens: 500
                     });
                     return completion.choices[0]?.message?.content || '';
                 }
@@ -116,7 +117,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             }
         }
 
-        return `[AI Service Alert] [v7]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
+        return `[AI Service Alert] [v8]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
     }
 
     async processMessage(message: string, context?: any, userId?: string): Promise<string> {
@@ -165,7 +166,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 const providers = [];
                 if (this.openai) providers.push('OpenAI');
                 if (this.gemini) providers.push('Gemini');
-                return `**System Status Check [v6]**:\n- Database: Connected\n- CDC Platform: ${this.initialized ? 'Ready' : 'Not Set'}\n- AI Providers: ${providers.length > 0 ? providers.join(', ') : 'None detected'}\n- Active Node: Cronos Testnet`;
+                return `**System Status Check [v8]**:\n- Database: Connected\n- CDC Platform: ${this.initialized ? 'Ready' : 'Not Set'}\n- AI Providers: ${providers.length > 0 ? providers.join(', ') : 'None detected'}\n- Active Node: Cronos Testnet`;
             }
 
             if (lowerMessage.includes('api')) {
