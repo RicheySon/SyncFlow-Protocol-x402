@@ -1,4 +1,4 @@
-import { ethers, BrowserProvider, parseEther, formatEther } from 'ethers';
+import { ethers, BrowserProvider, JsonRpcProvider, parseEther, formatEther } from 'ethers';
 import { CRONOS_CONFIG, CONTRACTS } from './config';
 
 // Define window.ethereum type
@@ -57,6 +57,24 @@ async function getMetaMaskProvider(): Promise<any> {
     // We only return this if we are desperate, but user specifically said "doesn't call meta mask".
     // If we are here, we probably didn't find "isMetaMask" flag.
     return window.ethereum;
+}
+
+/**
+ * Get a provider for reading data (RPC fallback)
+ */
+export async function getProvider(): Promise<JsonRpcProvider | BrowserProvider> {
+    if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+            const browserProvider = new BrowserProvider(window.ethereum);
+            const network = await browserProvider.getNetwork();
+            if (Number(network.chainId) === CRONOS_CONFIG.chainId) {
+                return browserProvider;
+            }
+        } catch (e) {
+            console.warn('Browser provider not ready for reading, falling back to RPC');
+        }
+    }
+    return new JsonRpcProvider(CRONOS_CONFIG.rpcUrl);
 }
 
 /**
@@ -134,17 +152,20 @@ export async function switchToCronosTestnet(): Promise<void> {
  * Get TCRO balance for address
  */
 export async function getTCROBalance(address: string): Promise<string> {
-    if (!window.ethereum) {
-        throw new Error('MetaMask not installed');
-    }
-
     try {
-        const provider = new BrowserProvider(window.ethereum);
+        const provider = await getProvider();
         const balance = await provider.getBalance(address);
         return formatEther(balance);
     } catch (error) {
         console.error('Error fetching TCRO balance:', error);
-        throw error;
+        // Secondary fallback to pure RPC if above failed
+        try {
+            const rpcProvider = new JsonRpcProvider(CRONOS_CONFIG.rpcUrl);
+            const balance = await rpcProvider.getBalance(address);
+            return formatEther(balance);
+        } catch (e2) {
+            return '0';
+        }
     }
 }
 
@@ -259,13 +280,25 @@ export async function sendERC20Token(
  * Get ERC20 Balance
  */
 export async function getERC20Balance(tokenAddress: string, walletAddress: string): Promise<string> {
-    if (!window.ethereum) return '0';
+    try {
+        const provider = await getProvider();
+        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
 
-    const provider = new BrowserProvider(window.ethereum);
-    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        const balance = await contract.balanceOf(walletAddress);
+        const decimals = await contract.decimals();
 
-    const balance = await contract.balanceOf(walletAddress);
-    const decimals = await contract.decimals();
-
-    return ethers.formatUnits(balance, decimals);
+        return ethers.formatUnits(balance, decimals);
+    } catch (e) {
+        console.warn('Error fetching ERC20 balance via provider, trying pure RPC fallback');
+        try {
+            const rpcProvider = new JsonRpcProvider(CRONOS_CONFIG.rpcUrl);
+            const contract = new ethers.Contract(tokenAddress, ERC20_ABI, rpcProvider);
+            const balance = await contract.balanceOf(walletAddress);
+            const decimals = await contract.decimals();
+            return ethers.formatUnits(balance, decimals);
+        } catch (e2) {
+            console.error('ERC20 balance fetch failed', e2);
+            return '0';
+        }
+    }
 }

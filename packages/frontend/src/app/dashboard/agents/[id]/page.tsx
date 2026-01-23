@@ -1378,6 +1378,7 @@ function WalletInfo({ balance, address, subUsers, agent, onTransactionSuccess }:
     const [usdcBalance, setUsdcBalance] = useState('0.00');
     const [agentWalletAddress, setAgentWalletAddress] = useState<string>('');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [totalUsd, setTotalUsd] = useState('0.00');
 
     const fetchBalances = async () => {
         if (!address) return;
@@ -1394,6 +1395,12 @@ function WalletInfo({ balance, address, subUsers, agent, onTransactionSuccess }:
             setTcroBalance(parseFloat(tcroBal).toFixed(2));
             setUsdcBalance(parseFloat(usdcBal).toFixed(2));
             setAgentWalletAddress(address);
+
+            // Calculate Total USD (Mock prices)
+            const tcroPrice = 0.053; // Mock TCRO price
+            const usdcPrice = 1.0;
+            const total = (parseFloat(tcroBal) * tcroPrice) + (parseFloat(usdcBal) * usdcPrice);
+            setTotalUsd(total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         } catch (e) {
             console.error("Failed to fetch balance", e);
         }
@@ -1429,8 +1436,8 @@ function WalletInfo({ balance, address, subUsers, agent, onTransactionSuccess }:
             <CardContent>
                 <div className="space-y-6">
                     <div>
-                        <p className="text-sm text-muted-foreground">Total Balance</p>
-                        <h2 className="text-3xl font-bold mt-1">$0.00</h2>
+                        <p className="text-sm text-muted-foreground">Total Balance (Est.)</p>
+                        <h2 className="text-3xl font-bold mt-1">${totalUsd}</h2>
                         <div className="flex items-center gap-1 mt-1 text-xs text-primary font-medium">
                             <ShieldCheck className="h-3 w-3" />
                             <span>Protected by x402</span>
