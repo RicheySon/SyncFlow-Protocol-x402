@@ -90,7 +90,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         // Prioritize the currently activeAI
         const sortedProviders = providers.sort((a) => a === this.activeAI ? -1 : 1);
 
-        let lastError = '';
+        const errors: string[] = [];
         for (const provider of sortedProviders) {
             try {
                 if (provider === 'gemini' && this.gemini) {
@@ -113,12 +113,12 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 }
             } catch (err: any) {
                 console.error(`${provider} AI error:`, err.message);
-                lastError = err.message;
+                errors.push(`${provider.toUpperCase()}: ${err.message}`);
                 continue;
             }
         }
 
-        return `[AI Service Alert] [v9]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Latest Error: ${lastError || 'Unknown Error'}. Using local knowledge base fallback.`;
+        return `[AI Service Alert] [v10]: AI providers failed. \nDiagnostics:\n- ${errors.join('\n- ')}\n\n💡 *Tip: Check your API keys and quotas in .env or the provider dashboard.*`;
     }
 
     async processMessage(message: string, context?: any, userId?: string): Promise<string> {
