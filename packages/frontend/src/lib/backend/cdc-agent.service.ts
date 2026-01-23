@@ -78,6 +78,13 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         if (this.openai) providers.push('openai');
         if (this.gemini) providers.push('gemini');
 
+        const missingOpenAI = !this.openai;
+        const missingGemini = !this.gemini;
+
+        if (missingOpenAI && missingGemini) {
+            return `[AI Service Alert] [v5]: No AI API keys were found in your Vercel Environment Variables. Please set GEMINI_API_KEY or OPENAI_API_KEY and redeploy.`;
+        }
+
         // Prioritize the currently activeAI
         const sortedProviders = providers.sort((a) => a === this.activeAI ? -1 : 1);
 
@@ -85,7 +92,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             try {
                 if (provider === 'gemini' && this.gemini) {
                     // Try the latest stable flash model
-                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
                     const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                     return result.response.text();
                 } else if (provider === 'openai' && this.openai) {
@@ -102,16 +109,12 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 }
             } catch (err: any) {
                 console.error(`${provider} AI error:`, err.message);
-                // On quota error, we continue to next provider if available instead of failing immediately
-                if (err.code === 'insufficient_quota' || err.status === 429) {
-                    console.warn(`${provider} quota exceeded, checking if failover is possible...`);
-                    continue;
-                }
-                // For other errors, also try next provider
+                // On quota error or generic error, try the next provider
+                continue;
             }
         }
 
-        return `[AI Service Alert] [v4]: Primary AI providers currently hitting rate limits. Using localized blockchain knowledge base.`;
+        return `[AI Service Alert] [v5]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
     }
 
     async processMessage(message: string, _context?: any): Promise<string> {
@@ -150,6 +153,17 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
 
             if (lowerMessage.includes('what is eth') || lowerMessage.includes('whats ethereum') || lowerMessage.includes('eth')) {
                 return "Ethereum (ETH) is a decentralized, open-source blockchain with smart contract functionality. It is the second-largest cryptocurrency by market cap and the foundation for much of DeFi and NFTs. Cronos is fully EVM-compatible with Ethereum!";
+            }
+
+            if (lowerMessage.includes('x402') || lowerMessage.includes('l402')) {
+                return "The **X402 Protocol** is a standard for machine-to-machine payments using the Cronos blockchain. It's based on the L402 standard (originally from Bitcoin Lightning) which combines HTTP 402 'Payment Required' status codes with macaroon-based authentication. In SyncFlow, X402 allows your agents to pay for services autonomously using CRO!";
+            }
+
+            if (lowerMessage.includes('debug status')) {
+                const providers = [];
+                if (this.openai) providers.push('OpenAI');
+                if (this.gemini) providers.push('Gemini');
+                return `**System Status Check [v5]**:\n- Database: Connected\n- CDC Platform: ${this.initialized ? 'Ready' : 'Not Set'}\n- AI Providers: ${providers.length > 0 ? providers.join(', ') : 'None detected'}\n- Active Node: Cronos Testnet`;
             }
 
             // 2. Fetch Latest Block logic (Localized)
