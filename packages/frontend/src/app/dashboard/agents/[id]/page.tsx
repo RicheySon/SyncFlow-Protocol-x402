@@ -218,6 +218,24 @@ function BatchPaymentModal({ agentAddress, subUsers, onTransactionSuccess }: {
             console.log('Recipients:', recipients);
             console.log('Amounts:', amounts.map(a => ethers.formatEther(a)));
 
+            // Validate contract address format
+            if (!ethers.isAddress(agentAddress)) {
+                throw new Error(`Invalid contract address: ${agentAddress}`);
+            }
+
+            // Check if contract exists at address
+            setExecutionStatus('Validating contract...');
+            try {
+                const code = await provider.getCode(agentAddress);
+                if (code === '0x') {
+                    throw new Error(`No contract found at address ${agentAddress}. Please deploy the contract first or use a valid address.`);
+                }
+                console.log('Contract exists at address');
+            } catch (err: any) {
+                console.error('Contract validation failed:', err);
+                throw new Error(`Cannot access contract: ${err.message}`);
+            }
+
             // Contract ABI for batchTransfer
             const contractABI = [
                 "function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external",
@@ -265,39 +283,54 @@ function BatchPaymentModal({ agentAddress, subUsers, onTransactionSuccess }: {
             console.log('Sending transaction...');
             setErrorMessage(null); // Clear previous errors
 
-            // Temporary UI feedback for signing
-            const originalText = document.getElementById('exec-btn-text')?.innerText;
-            // We can't easily change button text from here without state, but we rely on error handling.
+            try {
+                const tx = await contract.batchTransfer(recipients, amounts);
+                console.log('Transaction submitted:', tx.hash);
 
-            const tx = await contract.batchTransfer(recipients, amounts);
-            console.log('Transaction submitted:', tx.hash);
+                setTxHashes([tx.hash]);
+                setStep(4); // Move to Confirm Transactions (index 4) immediately
 
-            setTxHashes([tx.hash]);
-            setStep(4); // Move to Confirm Transactions (index 4) immediately
+                // Wait for confirmation
+                console.log('Waiting for confirmation...');
+                await tx.wait();
+                console.log('Transaction confirmed!');
 
-            // Wait for confirmation
-            console.log('Waiting for confirmation...');
-            await tx.wait();
-            console.log('Transaction confirmed!');
+                // Set all as success
+                tcroRecipients.forEach(user => {
+                    setRecipientStatuses(prev => ({ ...prev, [user.id]: 'success' }));
+                });
 
-            // Set all as success
-            tcroRecipients.forEach(user => {
-                setRecipientStatuses(prev => ({ ...prev, [user.id]: 'success' }));
-            });
+                // NEW: Record transaction
+                if (onTransactionSuccess) {
+                    const totalEth = amounts.reduce((acc, val) => acc + BigInt(val), 0n);
+                    onTransactionSuccess(tx.hash, parseFloat(ethers.formatEther(totalEth)), recipients.length);
+                }
 
-            // NEW: Record transaction
-            if (onTransactionSuccess) {
-                const totalEth = amounts.reduce((acc, val) => acc + BigInt(val), 0n);
-                onTransactionSuccess(tx.hash, parseFloat(ethers.formatEther(totalEth)), recipients.length);
+                setStep(4); // Move to Confirm Transactions (index 4)
+
+                // Move to complete after brief delay
+                setTimeout(() => {
+                    setStep(5); // Move to Complete (index 5)
+                    setProcessing(false);
+                }, 1500);
+            } catch (txErr: any) {
+                console.error('Transaction execution failed:', txErr);
+                let errorMsg = 'Transaction failed';
+                
+                if (txErr.message?.includes('32603') || txErr.message?.includes('Internal JSON-RPC')) {
+                    errorMsg = 'RPC endpoint error: Contract may not exist or network issue. Verify contract address is deployed on Cronos Testnet.';
+                } else if (txErr.message?.includes('insufficient funds')) {
+                    errorMsg = 'Insufficient TCRO balance in contract wallet';
+                } else if (txErr.message?.includes('caller is not owner')) {
+                    errorMsg = 'You are not the contract owner';
+                } else if (txErr.reason) {
+                    errorMsg = `Transaction reverted: ${txErr.reason}`;
+                } else {
+                    errorMsg = txErr.message || 'Unknown transaction error';
+                }
+                
+                throw new Error(errorMsg);
             }
-
-            setStep(4); // Move to Confirm Transactions (index 4)
-
-            // Move to complete after brief delay
-            setTimeout(() => {
-                setStep(5); // Move to Complete (index 5)
-                setProcessing(false);
-            }, 1500);
 
         } catch (error: any) {
             console.error('Batch payment error:', error);
