@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         });
 
         // 3. Get Agent Response
-        const response = await agentService.processMessage(message, context);
+        const response = await agentService.processMessage(message, context, userId);
 
         // 4. Save Agent Response
         await prisma.chatMessage.create({

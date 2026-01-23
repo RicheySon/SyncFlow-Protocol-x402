@@ -16,12 +16,22 @@ interface Message {
     timestamp: string;
     // Optional extras for UI state
     isProposal?: boolean;
+    isBatch?: boolean;
     proposalData?: {
-        to: string;
-        amount: string;
+        to?: string;
+        amount?: string;
         token: string;
         protocol?: string;
         quoteId?: string;
+        agentId?: string;
+        agentName?: string;
+        recipients?: Array<{
+            name: string;
+            address: string;
+            amount: string;
+            currency: string;
+        }>;
+        totalAmount?: number;
     };
     txHash?: string;
     status?: 'pending' | 'signed' | 'failed';
@@ -136,6 +146,7 @@ export function ChatInterface() {
             let proposalData = undefined;
 
             // Try to parse if it's a JSON string (Transaction Proposal)
+            let isBatchProposal = false;
             try {
                 if (content && content.trim().startsWith('{')) {
                     const parsed = JSON.parse(content);
@@ -143,6 +154,7 @@ export function ChatInterface() {
                         content = parsed.message;
                         isProposal = true;
                         proposalData = parsed.data;
+                        isBatchProposal = !!parsed.isBatch;
                     }
                 }
             } catch (e) {
@@ -155,6 +167,7 @@ export function ChatInterface() {
                 content: content || "I didn't get a response. Please check the backend connection.",
                 timestamp: new Date().toISOString(),
                 isProposal,
+                isBatch: isBatchProposal,
                 proposalData
             };
 
@@ -188,10 +201,17 @@ export function ChatInterface() {
             const token = msg.proposalData.token?.toLowerCase();
 
             if (token === 'tcro' || token === 'cro') {
+                if (!msg.proposalData.to || !msg.proposalData.amount) throw new Error("Missing recipient or amount");
                 result = await sendTCRODeposit(msg.proposalData.to, msg.proposalData.amount);
             } else if (token === 'devusdc.e' || token === 'usdc') {
+                if (!msg.proposalData.to || !msg.proposalData.amount) throw new Error("Missing recipient or amount");
                 // Use devUSDC address
                 result = await sendERC20Token(CONTRACTS.devUSDC, msg.proposalData.to, msg.proposalData.amount);
+            } else if (msg.isBatch) {
+                // Placeholder for batch logic - for now, redirect or alert
+                alert("Batch distribution signing from chat is coming soon. Please use the Agent Details page for now.");
+                setTxLoading(null);
+                return;
             } else {
                 throw new Error(`Unsupported token: ${msg.proposalData.token}`);
             }
@@ -294,18 +314,35 @@ export function ChatInterface() {
                                             </div>
                                             <Sparkles className="h-3 w-3 text-secondary" />
                                         </div>
-                                        <div className="space-y-1 mb-3">
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-muted-foreground">Send:</span>
-                                                <span className="font-mono font-bold text-foreground">{msg.proposalData.amount} {msg.proposalData.token}</span>
+                                        {!msg.isBatch ? (
+                                            <div className="space-y-1 mb-3">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">Send:</span>
+                                                    <span className="font-mono font-bold text-foreground">{msg.proposalData.amount} {msg.proposalData.token}</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">To:</span>
+                                                    <span className="font-mono text-primary" title={msg.proposalData.to}>
+                                                        {msg.proposalData.to?.substring(0, 6)}...{msg.proposalData.to?.substring(38)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-muted-foreground">To:</span>
-                                                <span className="font-mono text-primary" title={msg.proposalData.to}>
-                                                    {msg.proposalData.to.substring(0, 6)}...{msg.proposalData.to.substring(38)}
-                                                </span>
+                                        ) : (
+                                            <div className="space-y-2 mb-3">
+                                                <div className="flex justify-between text-xs font-bold border-b border-border pb-1">
+                                                    <span className="text-muted-foreground">Total:</span>
+                                                    <span className="text-foreground">{msg.proposalData.totalAmount} {msg.proposalData.token}</span>
+                                                </div>
+                                                <div className="max-h-24 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
+                                                    {msg.proposalData.recipients?.map((r, i) => (
+                                                        <div key={i} className="flex justify-between text-[10px]">
+                                                            <span className="text-muted-foreground truncate max-w-[100px]">{r.name}</span>
+                                                            <span className="font-mono">{r.amount} {r.currency}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
 
                                         {msg.status === 'signed' ? (
                                             <div className="bg-green-500/10 border border-green-500/20 rounded p-2 flex items-center gap-2 text-green-600 text-xs">

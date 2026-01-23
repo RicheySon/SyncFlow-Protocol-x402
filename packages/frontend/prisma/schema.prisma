@@ -47,6 +47,19 @@ model Agent {
   updatedAt   DateTime @updatedAt
   
   transactions Transaction[]
+  recipients   Recipient[]
+}
+
+model Recipient {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  currency  String   @default("TCRO")
+  amount    String?
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Workflow {

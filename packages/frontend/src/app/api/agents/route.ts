@@ -39,11 +39,15 @@ export async function POST(request: Request) {
         }
 
         const data = await request.json();
+        const { ethers } = await import('ethers');
 
         // Validate
         if (!data.name || !data.type) {
             return NextResponse.json({ message: 'Name and Type are required' }, { status: 400 });
         }
+
+        // Generate a real EOA wallet for the agent
+        const wallet = ethers.Wallet.createRandom();
 
         const newAgent = await prisma.agent.create({
             data: {
@@ -53,8 +57,8 @@ export async function POST(request: Request) {
                 status: 'active',
                 config: data.config || '{}',
                 userId: userId,
-                // Mock wallet for now if not provided, or logic to generate one
-                walletAddress: '0x' + Math.random().toString(16).substr(2, 40),
+                walletAddress: wallet.address,
+                walletPrivateKey: wallet.privateKey, // Store the real private key
             },
         });
 

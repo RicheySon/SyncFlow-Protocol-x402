@@ -33,7 +33,8 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { Progress } from '../../../../components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../../../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
-import { agentsApi, type Agent } from '../../../../lib/api/agents';
+import { agentsApi, recipientsApi, type Agent, type Recipient } from '../../../../lib/api/agents';
+import { apiClient } from '../../../../lib/api';
 
 // Mock transactions and other data not yet in API can remain as placeholders or empty for now
 const mockTransactions: any[] = [];
@@ -41,8 +42,9 @@ const mockMcpServers: any[] = [];
 
 // BatchPaymentModal component remains the same
 // BatchPaymentModal component
-function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
-    subUsers: any[],
+function BatchPaymentModal({ agentAddress, subUsers, onTransactionSuccess }: {
+    agentAddress: string,
+    subUsers: Recipient[],
     onTransactionSuccess?: (txHash: string, amount: number, recipientsCount: number) => void
 }) {
     const [step, setStep] = useState(0);
@@ -133,7 +135,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             const { getTCROBalance } = await import('../../../../lib/wallet');
 
             // Add timeout protection
-            const balancePromise = getTCROBalance(CONTRACTS.agentWallet);
+            const balancePromise = getTCROBalance(agentAddress);
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Balance check timed out after 10s')), 10000)
             );
@@ -143,7 +145,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             const balanceNum = parseFloat(contractBalance);
 
             console.log('Contract balance check:', {
-                contract: CONTRACTS.agentWallet,
+                contract: agentAddress,
                 balance: balanceNum,
                 required: totalAmount
             });
@@ -212,7 +214,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
             }
 
             // Log for debugging
-            console.log('Contract:', CONTRACTS.agentWallet);
+            console.log('Contract:', agentAddress);
             console.log('Recipients:', recipients);
             console.log('Amounts:', amounts.map(a => ethers.formatEther(a)));
 
@@ -222,7 +224,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
                 "function owner() view returns (address)"
             ];
 
-            const contract = new ethers.Contract(CONTRACTS.agentWallet, contractABI, signer);
+            const contract = new ethers.Contract(agentAddress, contractABI, signer);
 
             // Verify ownership before sending
             setExecutionStatus('Verifying contract ownership...');
@@ -346,7 +348,7 @@ function BatchPaymentModal({ subUsers, onTransactionSuccess }: {
                 <DialogHeader>
                     <DialogTitle>Batch Payment Execution</DialogTitle>
                     <DialogDescription>
-                        Execute TCRO payments to {tcroRecipients.length} recipient{tcroRecipients.length !== 1 ? 's' : ''}.
+                        Execute TCRO payments to {tcroRecipients.length} recipient{tcroRecipients.length !== 1 ? 's' : ''} from agent {agentAddress.slice(0, 6)}...
                     </DialogDescription>
                 </DialogHeader>
 
@@ -727,7 +729,7 @@ function EditUserModal({ user, onEditUser, onDeleteUser }: { user: any; onEditUs
     );
 }
 
-function DepositModal() {
+function DepositModal({ agentAddress }: { agentAddress: string }) {
     const [open, setOpen] = useState(false);
     const [formData, setFormData] = useState({
         currency: 'TCRO',
@@ -776,10 +778,10 @@ function DepositModal() {
             let tx;
 
             if (formData.currency === 'TCRO') {
-                tx = await sendTCRODeposit(CONTRACTS.agentWallet, formData.amount);
+                tx = await sendTCRODeposit(agentAddress, formData.amount);
             } else if (formData.currency === 'devUSDC.e' || formData.currency === 'USDC') {
                 // Deposit USDC to agent wallet
-                tx = await sendERC20Token(CONTRACTS.devUSDC, CONTRACTS.agentWallet, formData.amount);
+                tx = await sendERC20Token(CONTRACTS.devUSDC, agentAddress, formData.amount);
             } else {
                 throw new Error('Unsupported currency');
             }
@@ -943,7 +945,6 @@ function DepositModal() {
 function KeysModal({ agent }: { agent: Agent | null }) {
     const [open, setOpen] = useState(false);
     const [showPrivateKey, setShowPrivateKey] = useState(false);
-    const mockPrivateKey = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -998,7 +999,7 @@ function KeysModal({ agent }: { agent: Agent | null }) {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => copyToClipboard(mockPrivateKey)}
+                                        onClick={() => copyToClipboard(agent?.walletPrivateKey || '')}
                                     >
                                         <Copy className="h-3 w-3 mr-1" /> Copy
                                     </Button>
@@ -1007,7 +1008,7 @@ function KeysModal({ agent }: { agent: Agent | null }) {
                         </div>
                         <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
                             <p className="font-mono text-xs text-slate-300 break-all">
-                                {showPrivateKey ? mockPrivateKey : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
+                                {showPrivateKey ? (agent?.walletPrivateKey || 'Not Available') : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
                             </p>
                         </div>
                         <div className="flex items-center gap-2 text-amber-500 text-xs">
@@ -1031,13 +1032,12 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
 
     // Fetch agent balance
     const fetchBalance = async () => {
-        if (!agent) return;
+        if (!agent || !agent.walletAddress) return;
 
         try {
             setBalanceLoading(true);
-            const { CONTRACTS } = await import('../../../../lib/config');
             const { getTCROBalance } = await import('../../../../lib/wallet');
-            const balance = await getTCROBalance(CONTRACTS.agentWallet);
+            const balance = await getTCROBalance(agent.walletAddress);
             setTcroBalance(parseFloat(balance).toFixed(2));
         } catch (error) {
             console.error('Error fetching balance:', error);
@@ -1047,22 +1047,24 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
     };
 
     useEffect(() => {
-        const fetchAgent = async () => {
+        const fetchData = async () => {
+            if (!params.id) return;
             try {
                 setLoading(true);
-                const data = await agentsApi.getById(params.id);
-                setAgent(data);
-                // Future: fetch subUsers here if API supports it
+                const [agentData, recipientsData] = await Promise.all([
+                    agentsApi.getById(params.id),
+                    recipientsApi.getAll(params.id)
+                ]);
+                setAgent(agentData);
+                setSubUsers(recipientsData);
             } catch (err: any) {
-                setError(err.message || 'Failed to load agent');
+                setError(err.message || 'Failed to load agent data');
             } finally {
                 setLoading(false);
             }
         };
 
-        if (params.id) {
-            fetchAgent();
-        }
+        fetchData();
     }, [params.id]);
 
     // Fetch balance when agent is loaded
@@ -1072,52 +1074,34 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
         }
     }, [agent]);
 
-    // NEW: Load sub-users from localStorage on mount
-    useEffect(() => {
-        const storedUsers = localStorage.getItem(`syncflow_subusers_${params.id}`);
-        if (storedUsers) {
-            try {
-                setSubUsers(JSON.parse(storedUsers));
-            } catch (e) {
-                console.error('Failed to parse stored users', e);
-            }
-        }
-    }, [params.id]);
+    // Removed localStorage effects
 
-    // NEW: Save sub-users to localStorage whenever they change
-    useEffect(() => {
-        if (subUsers.length > 0) { // Only save if we have users (or overwrite if empty if that's desired behavior)
-            localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(subUsers));
-        } else {
-            // Optional: Clear if empty, or keep empty array
-            // localStorage.removeItem(`syncflow_subusers_${params.id}`);
+    const handleAddUser = async (userData: any) => {
+        try {
+            const newUser = await recipientsApi.create(params.id, userData);
+            setSubUsers(prev => [...prev, newUser]);
+        } catch (error: any) {
+            alert(`Failed to add recipient: ${error.message}`);
         }
-    }, [subUsers, params.id]);
-
-    const handleAddUser = (userData: any) => {
-        const newUser = {
-            id: crypto.randomUUID(),
-            ...userData,
-            status: 'active'
-        };
-        const updatedUsers = [...subUsers, newUser];
-        setSubUsers(updatedUsers);
-        // Direct save to ensure immediate persistence
-        localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(updatedUsers));
     };
 
-    const handleEditUser = (userId: string, updates: any) => {
-        const updatedUsers = subUsers.map(user =>
-            user.id === userId ? { ...user, ...updates } : user
-        );
-        setSubUsers(updatedUsers);
-        localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(updatedUsers));
+    const handleEditUser = async (recipientId: string, updates: any) => {
+        try {
+            const updated = await recipientsApi.update(params.id, recipientId, updates);
+            setSubUsers(prev => prev.map(u => u.id === recipientId ? updated : u));
+        } catch (error: any) {
+            alert(`Failed to update recipient: ${error.message}`);
+        }
     };
 
-    const handleDeleteUser = (userId: string) => {
-        const updatedUsers = subUsers.filter(user => user.id !== userId);
-        setSubUsers(updatedUsers);
-        localStorage.setItem(`syncflow_subusers_${params.id}`, JSON.stringify(updatedUsers));
+    const handleDeleteUser = async (recipientId: string) => {
+        if (!confirm('Are you sure you want to remove this recipient?')) return;
+        try {
+            await recipientsApi.delete(params.id, recipientId);
+            setSubUsers(prev => prev.map(u => u.id === recipientId ? { ...u, status: 'deleted' } as any : u).filter(u => u.id !== recipientId));
+        } catch (error: any) {
+            alert(`Failed to delete recipient: ${error.message}`);
+        }
     };
 
     // Transaction state
@@ -1380,19 +1364,20 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const fetchBalances = async () => {
+        if (!address) return;
         try {
             const { CONTRACTS } = await import('../../../../lib/config');
             const { getTCROBalance, getERC20Balance } = await import('../../../../lib/wallet');
 
             // Parallel fetch
             const [tcroBal, usdcBal] = await Promise.all([
-                getTCROBalance(CONTRACTS.agentWallet),
-                getERC20Balance(CONTRACTS.devUSDC, CONTRACTS.agentWallet)
+                getTCROBalance(address),
+                getERC20Balance(CONTRACTS.devUSDC, address)
             ]);
 
             setTcroBalance(parseFloat(tcroBal).toFixed(2));
             setUsdcBalance(parseFloat(usdcBal).toFixed(2));
-            setAgentWalletAddress(CONTRACTS.agentWallet);
+            setAgentWalletAddress(address);
         } catch (e) {
             console.error("Failed to fetch balance", e);
         }
@@ -1465,9 +1450,13 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
 
                     <div className="grid grid-cols-2 gap-2">
                         <div className="col-span-2">
-                            <BatchPaymentModal subUsers={subUsers} onTransactionSuccess={onTransactionSuccess} />
+                            <BatchPaymentModal
+                                agentAddress={address}
+                                subUsers={subUsers}
+                                onTransactionSuccess={onTransactionSuccess}
+                            />
                         </div>
-                        <DepositModal />
+                        <DepositModal agentAddress={address} />
                         <KeysModal agent={null} />
                     </div>
 

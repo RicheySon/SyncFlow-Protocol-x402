@@ -2,6 +2,8 @@ import { Client, Wallet, Transaction, Block } from '@crypto.com/developer-platfo
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { X402Handler } from './core/x402/X402Handler';
+import { prisma } from '../prisma';
+import { ethers } from 'ethers';
 
 export class CdcAgentService {
     private openai: OpenAI | null = null;
@@ -117,7 +119,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         return `[AI Service Alert] [v7]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
     }
 
-    async processMessage(message: string, _context?: any): Promise<string> {
+    async processMessage(message: string, context?: any, userId?: string): Promise<string> {
         if (!this.initialized) {
             return `[Setup Required]: Please configure CDC_DASHBOARD_API_KEY in your Vercel Environment Variables.`;
         }
@@ -240,7 +242,52 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 });
             }
 
-            // 5. If it's none of the above, try AI
+            // 5. Batch Distribution (Localized)
+            const batchIntent = lowerMessage.includes('pay everyone') ||
+                lowerMessage.includes('distribute') ||
+                lowerMessage.includes('payroll') ||
+                lowerMessage.includes('batch pay');
+
+            if (batchIntent && userId) {
+                // Fetch the user's active agent (simplification: first active agent)
+                const agent = await (prisma.agent as any).findFirst({
+                    where: { userId, status: 'Active' },
+                    include: { recipients: true }
+                });
+
+                if (!agent) {
+                    return "You don't have an active agent to perform a batch distribution. Please create and activate an agent first.";
+                }
+
+                if (agent.recipients.length === 0) {
+                    return `Your agent **${agent.name}** doesn't have any sub-users/recipients configured. Add some recipients in the Agent Details page first.`;
+                }
+
+                const totalAmount = (agent.recipients as any[]).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+
+                return JSON.stringify({
+                    type: "transaction_proposal",
+                    isBatch: true,
+                    data: {
+                        agentId: agent.id,
+                        agentName: agent.name,
+                        recipients: (agent.recipients as any[]).map((r: any) => ({
+                            name: r.name,
+                            address: r.address,
+                            amount: r.amount,
+                            currency: r.currency
+                        })),
+                        totalAmount,
+                        token: "CRO",
+                        protocol: "x402"
+                    },
+                    message: `I've prepared a **Batch Distribution** for agent **${agent.name}**.\n\n` +
+                        `This will distribute a total of **${totalAmount} CRO** among **${agent.recipients.length} recipients** using the X402 protocol.\n\n` +
+                        `Please review the summary and sign the batch transaction.`
+                });
+            }
+
+            // 6. If it's none of the above, try AI
             if (this.activeAI !== 'none') {
                 aiResponse = await this.getAIResponse(message);
             }
