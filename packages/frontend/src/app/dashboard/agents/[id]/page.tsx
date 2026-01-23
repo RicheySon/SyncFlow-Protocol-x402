@@ -1312,6 +1312,7 @@ IF (date.day === 'FRIDAY') {
                         balance={tcroBalance}
                         address={agent.walletAddress || ''}
                         subUsers={subUsers}
+                        agent={agent}
                         onTransactionSuccess={addTransaction}
                     />
 
@@ -1352,10 +1353,11 @@ IF (date.day === 'FRIDAY') {
     );
 }
 
-function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
+function WalletInfo({ balance, address, subUsers, agent, onTransactionSuccess }: {
     balance: string,
     address: string,
     subUsers: any[],
+    agent: Agent | null,
     onTransactionSuccess: (txHash: string, amount: number, recipientsCount: number) => void
 }) {
     const [tcroBalance, setTcroBalance] = useState('0.00');
@@ -1457,7 +1459,7 @@ function WalletInfo({ balance, address, subUsers, onTransactionSuccess }: {
                             />
                         </div>
                         <DepositModal agentAddress={address} />
-                        <KeysModal agent={null} />
+                        <KeysModal agent={agent} />
                     </div>
 
                     <Button
