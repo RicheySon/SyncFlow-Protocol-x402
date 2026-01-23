@@ -316,7 +316,7 @@ function BatchPaymentModal({ agentAddress, subUsers, onTransactionSuccess }: {
             } catch (txErr: any) {
                 console.error('Transaction execution failed:', txErr);
                 let errorMsg = 'Transaction failed';
-                
+
                 if (txErr.message?.includes('32603') || txErr.message?.includes('Internal JSON-RPC')) {
                     errorMsg = 'RPC endpoint error: Contract may not exist or network issue. Verify contract address is deployed on Cronos Testnet.';
                 } else if (txErr.message?.includes('insufficient funds')) {
@@ -328,7 +328,7 @@ function BatchPaymentModal({ agentAddress, subUsers, onTransactionSuccess }: {
                 } else {
                     errorMsg = txErr.message || 'Unknown transaction error';
                 }
-                
+
                 throw new Error(errorMsg);
             }
 
@@ -1063,6 +1063,55 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
     const [subUsers, setSubUsers] = useState<any[]>([]); // Initialize empty
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [needsDeployment, setNeedsDeployment] = useState(false);
+    const [isDeploying, setIsDeploying] = useState(false);
+
+    // Verify contract on load
+    useEffect(() => {
+        if (agent?.walletAddress && window.ethereum) {
+            checkContract(agent.walletAddress);
+        }
+    }, [agent?.walletAddress]);
+
+    const checkContract = async (address: string) => {
+        try {
+            const { BrowserProvider } = await import('ethers');
+            const provider = new BrowserProvider(window.ethereum);
+            const code = await provider.getCode(address);
+            if (code === '0x') {
+                console.warn('Agent contract not deployed at address:', address);
+                setNeedsDeployment(true);
+            } else {
+                setNeedsDeployment(false);
+            }
+        } catch (e) {
+            console.error('Failed to check contract:', e);
+        }
+    };
+
+    const handleDeploy = async () => {
+        if (!agent) return;
+        setIsDeploying(true);
+        try {
+            const { deploySyncFlowAgent } = await import('../../../../lib/wallet');
+            const result = await deploySyncFlowAgent(agent.name, agent.type);
+
+            // Update agent with new address
+            await agentsApi.update(agent.id, {
+                walletAddress: result.address,
+                status: 'active'
+            });
+
+            // Update local state
+            setAgent(prev => prev ? ({ ...prev, walletAddress: result.address }) : null);
+            setNeedsDeployment(false);
+            alert('Agent Deployed Successfully! Address: ' + result.address);
+        } catch (err: any) {
+            alert('Deployment failed: ' + err.message);
+        } finally {
+            setIsDeploying(false);
+        }
+    };
     const [tcroBalance, setTcroBalance] = useState<string>('0.00');
     const [balanceLoading, setBalanceLoading] = useState(false);
 
@@ -1251,6 +1300,21 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                     </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
+                    {needsDeployment && (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDeploy}
+                            disabled={isDeploying}
+                            className="animate-pulse"
+                        >
+                            {isDeploying ? (
+                                <>Deploying...</>
+                            ) : (
+                                <><Zap className="mr-2 h-4 w-4" /> Deploy Contract</>
+                            )}
+                        </Button>
+                    )}
                     <Button variant="outline" size="sm">
                         <Pause className="mr-2 h-4 w-4" /> Pause
                     </Button>

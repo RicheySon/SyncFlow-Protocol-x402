@@ -302,3 +302,46 @@ export async function getERC20Balance(tokenAddress: string, walletAddress: strin
         }
     }
 }
+
+/**
+ * Deploy a new SyncFlowAgent contract
+ */
+export async function deploySyncFlowAgent(
+    name: string,
+    type: string
+): Promise<{ address: string; hash: string; wait: () => Promise<any> }> {
+    if (!window.ethereum) {
+        throw new Error('MetaMask not installed');
+    }
+
+    try {
+        const { BrowserProvider, ContractFactory } = await import('ethers');
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+
+        // Dynamically import ABI/Bytecode to avoid large bundle size if not used
+        const artifact = await import('../../abis/SyncFlowAgent.json');
+        const abi = artifact.abi;
+        const bytecode = artifact.bytecode;
+
+        const factory = new ContractFactory(abi, bytecode, signer);
+
+        console.log('Deploying SyncFlowAgent...', { name, type });
+        const contract = await factory.deploy(name, type);
+
+        console.log('Deployment transaction sent:', contract.deploymentTransaction()?.hash);
+
+        await contract.waitForDeployment();
+        const address = await contract.getAddress();
+        console.log('SyncFlowAgent deployed at:', address);
+
+        return {
+            address,
+            hash: contract.deploymentTransaction()?.hash || '',
+            wait: () => contract.waitForDeployment()
+        };
+    } catch (error: any) {
+        console.error('Agent deployment error:', error);
+        throw new Error(error.message || 'Failed to deploy agent contract');
+    }
+}
