@@ -94,7 +94,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         for (const provider of sortedProviders) {
             try {
                 if (provider === 'gemini' && this.gemini) {
-                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
                     const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                     const responseText = result.response.text();
                     if (responseText) return responseText;
