@@ -1,4 +1,4 @@
-import { Client, Wallet, Transaction, Block } from '@crypto.com/developer-platform-client';
+import { getCryptoComClient, isCryptoComConfigured } from '../cryptocom-client';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { X402Handler } from './core/x402/X402Handler';
@@ -10,6 +10,7 @@ export class CdcAgentService {
     private gemini: GoogleGenerativeAI | null = null;
     private activeAI: 'gemini' | 'openai' | 'none' = 'none';
     private initialized = false;
+    private cryptoComAvailable = false;
 
     constructor() {
         this.initialize();
@@ -17,18 +18,16 @@ export class CdcAgentService {
 
     private initialize() {
         try {
-            const CDC_KEY = process.env.CDC_DASHBOARD_API_KEY;
-            const RPC_URL = process.env.CRONOS_RPC_URL || 'https://evm-t3.cronos.org';
             const GEMINI_KEY = process.env.GEMINI_API_KEY;
             const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-            // Initialize Developer Platform Client
-            if (CDC_KEY) {
-                Client.init({
-                    apiKey: CDC_KEY,
-                    provider: RPC_URL
-                });
-                console.log('✅ Crypto.com Developer Platform Client initialized');
+            // Check Crypto.com SDK availability
+            this.cryptoComAvailable = isCryptoComConfigured();
+            if (this.cryptoComAvailable) {
+                console.log('✅ Crypto.com Developer Platform Client configured');
+                this.initialized = true;
+            } else {
+                console.warn('⚠️  Crypto.com SDK not configured - blockchain features limited');
             }
 
             // AI Providers Initialization
@@ -49,7 +48,6 @@ export class CdcAgentService {
                 this.activeAI = 'gemini';
             }
 
-            this.initialized = !!CDC_KEY;
         } catch (error) {
             console.error('Error initializing CdcAgentService:', error);
             this.initialized = false;
@@ -183,17 +181,29 @@ SyncFlow Protocol details:
                             const args = JSON.parse(toolCall.function.arguments);
 
                             if (functionName === "get_latest_block") {
-                                const res = await Block.getBlockByTag(args.tag || 'latest');
+                                if (!this.cryptoComAvailable) {
+                                    return "Blockchain features unavailable. Please configure NEXT_PUBLIC_CRYPTOCOM_API_KEY.";
+                                }
+                                const client = getCryptoComClient();
+                                const res = await client.Block.getBlockByTag(args.tag || 'latest');
                                 return `Latest Block Information:\n${JSON.stringify((res as any).data, null, 2)}`;
                             }
 
                             if (functionName === "get_balance") {
-                                const res = await Wallet.balance(args.address);
+                                if (!this.cryptoComAvailable) {
+                                    return "Blockchain features unavailable. Please configure NEXT_PUBLIC_CRYPTOCOM_API_KEY.";
+                                }
+                                const client = getCryptoComClient();
+                                const res = await client.Wallet.balance(args.address);
                                 return `Balance for ${args.address}:\n${JSON.stringify((res as any).data, null, 2)}`;
                             }
 
                             if (functionName === "get_transaction") {
-                                const res = await Transaction.getTransactionByHash(args.txHash);
+                                if (!this.cryptoComAvailable) {
+                                    return "Blockchain features unavailable. Please configure NEXT_PUBLIC_CRYPTOCOM_API_KEY.";
+                                }
+                                const client = getCryptoComClient();
+                                const res = await client.Transaction.getTransactionByHash(args.txHash);
                                 return `Transaction Details:\n${JSON.stringify((res as any).data, null, 2)}`;
                             }
 
