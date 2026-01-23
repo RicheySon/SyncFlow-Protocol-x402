@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 
 async function main() {
     const OLD_CONTRACT = "0x43EdC3Bf4c0766E2EdFD557C99cE8A89bDAA827A";
-    const NEW_CONTRACT = "0x21E205e2C45417E81d39F28183cA0BA1493ACeee";
+    const NEW_CONTRACT = "0xBfcCb5a28Aa4B2e8975CaFBE53A521afFEC42255";
 
     const [signer] = await ethers.getSigners();
     console.log(`Recovering funds using account: ${signer.address}`);
