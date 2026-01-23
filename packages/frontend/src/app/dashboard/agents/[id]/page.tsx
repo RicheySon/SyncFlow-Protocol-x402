@@ -541,7 +541,7 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
     const [formData, setFormData] = useState({
         name: '',
         address: '',
-        currency: 'USDC',
+        currency: 'TCRO',
         amount: ''
     });
 
@@ -551,7 +551,7 @@ function AddUserModal({ onAddUser }: { onAddUser: (user: any) => void }) {
             id: Date.now().toString(),
             ...formData
         });
-        setFormData({ name: '', address: '', currency: 'USDC', amount: '' });
+        setFormData({ name: '', address: '', currency: 'TCRO', amount: '' });
         setOpen(false);
     };
 
@@ -633,7 +633,7 @@ function EditUserModal({ user, onEditUser, onDeleteUser }: { user: any; onEditUs
     const [formData, setFormData] = useState({
         name: user.name,
         address: user.address,
-        currency: user.currency || 'USDC',
+        currency: user.currency || 'TCRO',
         amount: user.amount || ''
     });
 
