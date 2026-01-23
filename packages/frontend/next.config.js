@@ -45,7 +45,7 @@ const nextConfig = {
             },
         ];
     },
-    webpack: (config, { isServer }) => {
+    webpack: (config, { isServer, webpack }) => {
         // Disable Node.js polyfills for client-side
         if (!isServer) {
             config.resolve.fallback = {
@@ -54,6 +54,16 @@ const nextConfig = {
                 stream: false,
                 buffer: false,
             };
+
+            // Fix for "node:crypto" and other node: schemes in dependencies
+            config.plugins.push(
+                new webpack.NormalModuleReplacementPlugin(
+                    /^node:/,
+                    (resource) => {
+                        resource.request = resource.request.replace(/^node:/, "");
+                    }
+                )
+            );
         }
         return config;
     },
