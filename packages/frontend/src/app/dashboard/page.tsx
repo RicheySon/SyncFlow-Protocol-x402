@@ -36,6 +36,7 @@ import {
     Area
 } from 'recharts';
 import { agentsApi } from '../../lib/api/agents';
+import { transactionsApi } from '../../lib/api/transactions';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -43,62 +44,44 @@ export default function DashboardPage() {
         totalVolume: 0,
         activeAgents: 0,
         successRate: 100,
-        avgSettlementTime: '2.4s' // Keep as estimate for now
+        avgSettlementTime: '2.4s'
     });
     const [recentTx, setRecentTx] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        loadDashboardData();
-        // Listen for updates
-        window.addEventListener('storage', loadDashboardData);
-        return () => window.removeEventListener('storage', loadDashboardData);
-    }, []);
 
     const loadDashboardData = async () => {
         try {
             setLoading(true);
 
-            // 1. Fetch Agents
-            const agents = await agentsApi.getAll();
-            const activeCount = agents.filter(a => a.status === 'active').length;
+            // 1. Fetch Data in Parallel
+            const [agents, transactions] = await Promise.all([
+                agentsApi.getAll(),
+                transactionsApi.getAll()
+            ]);
 
-            // 2. Scan LocalStorage for Transactions
+            // 2. Aggregate Stats
             let totalVol = 0;
-            let txCount = 0;
             let successCount = 0;
-            const allTxs: any[] = [];
+            const txCount = transactions.length;
 
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('syncflow_transactions_')) {
-                    const agentId = key.replace('syncflow_transactions_', '');
-                    const agentName = agents.find(a => a.id === agentId)?.name || 'Unknown Agent';
+            const allTxs = transactions.map((tx: any) => {
+                const amount = parseFloat(tx.amount || '0');
+                totalVol += amount;
+                if (tx.status === 'success') successCount++;
 
-                    try {
-                        const txs = JSON.parse(localStorage.getItem(key) || '[]');
-                        txs.forEach((tx: any) => {
-                            const amount = parseFloat(tx.amount || '0');
-                            totalVol += amount;
-                            txCount++;
-                            if (tx.status === 'success' || !tx.status) successCount++; // Default to success if undefined (legacy)
+                const agentName = agents.find(a => a.id === tx.agentId)?.name || 'Unknown Agent';
 
-                            allTxs.push({
-                                id: tx.id || tx.txHash,
-                                agent: agentName,
-                                action: tx.type || 'Payment',
-                                amount: `${amount.toFixed(2)} ${tx.currency || 'TCRO'}`,
-                                status: tx.status || 'success',
-                                time: new Date(tx.date || Date.now()).toLocaleTimeString(),
-                                timestamp: new Date(tx.date || Date.now()).getTime(),
-                                hash: tx.txHash || '0x...'
-                            });
-                        });
-                    } catch (e) {
-                        console.error('Error parsing tx', e);
-                    }
-                }
-            }
+                return {
+                    id: tx.id || tx.txHash,
+                    agent: agentName,
+                    action: tx.type || 'Payment',
+                    amount: `${amount.toFixed(2)} ${tx.currency || 'TCRO'}`,
+                    status: tx.status || 'success',
+                    time: new Date(tx.createdAt || Date.now()).toLocaleTimeString(),
+                    timestamp: new Date(tx.createdAt || Date.now()).getTime(),
+                    hash: tx.txHash || '0x...'
+                };
+            });
 
             // Sort by new
             allTxs.sort((a, b) => b.timestamp - a.timestamp);
@@ -118,6 +101,13 @@ export default function DashboardPage() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        loadDashboardData();
+        // Listen for updates
+        window.addEventListener('storage', loadDashboardData);
+        return () => window.removeEventListener('storage', loadDashboardData);
+    }, []);
 
     // Chart Data
     const settlementData = [
