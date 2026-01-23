@@ -114,7 +114,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             }
         }
 
-        return `[AI Service Alert] [v5]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
+        return `[AI Service Alert] [v7]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
     }
 
     async processMessage(message: string, _context?: any): Promise<string> {
@@ -183,7 +183,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             }
 
             // 2. Fetch Latest Block logic (Localized)
-            if (lowerMessage.includes('latest block') || lowerMessage.includes('current block')) {
+            if (lowerMessage.includes('latest block') || lowerMessage.includes('current block') || lowerMessage.includes('last block')) {
                 // Add 5s timeout to prevent hanging
                 const blockPromise = Block.getBlockByTag('latest');
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching block')), 5000));
