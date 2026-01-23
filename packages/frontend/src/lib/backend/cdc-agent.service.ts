@@ -90,15 +90,15 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         // Prioritize the currently activeAI
         const sortedProviders = providers.sort((a) => a === this.activeAI ? -1 : 1);
 
+        let lastError = '';
         for (const provider of sortedProviders) {
             try {
                 if (provider === 'gemini' && this.gemini) {
-                    // Upgrade to 1.5-flash for higher throughput and lower latency
                     const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
                     const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
-                    return result.response.text();
+                    const responseText = result.response.text();
+                    if (responseText) return responseText;
                 } else if (provider === 'openai' && this.openai) {
-                    // Upgrade to gpt-4o-mini for better performance and cost-efficiency
                     const completion = await this.openai.chat.completions.create({
                         model: 'gpt-4o-mini',
                         messages: [
@@ -108,16 +108,17 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                         temperature: 0.7,
                         max_tokens: 500
                     });
-                    return completion.choices[0]?.message?.content || '';
+                    const content = completion.choices[0]?.message?.content;
+                    if (content) return content;
                 }
             } catch (err: any) {
                 console.error(`${provider} AI error:`, err.message);
-                // On quota error or generic error, try the next provider
+                lastError = err.message;
                 continue;
             }
         }
 
-        return `[AI Service Alert] [v8]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Using local knowledge base.`;
+        return `[AI Service Alert] [v9]: All configured AI providers (${providers.join(', ')}) failed or hit limits. Latest Error: ${lastError || 'Unknown Error'}. Using local knowledge base fallback.`;
     }
 
     async processMessage(message: string, context?: any, userId?: string): Promise<string> {
@@ -146,16 +147,16 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 return "Bitcoin (BTC) is the first decentralized cryptocurrency, a digital asset which uses cryptography to secure its transactions. While SyncFlow focus is on Cronos (CRO) and L402 protocols, BTC remains the 'digital gold' of the industry.";
             }
 
-            if (lowerMessage.includes('what is cronos') || lowerMessage.includes('whats cronos')) {
-                return "Cronos is the leading Ethereum-compatible layer 1 blockchain network built on the Cosmos SDK, supported by Crypto.com. It's designed to scale the DeFi, GameFi, and NFT ecosystems by providing developers with instant porting of apps and smart contracts.";
+            if (lowerMessage.includes('cronos')) {
+                return "The **Cronos Network** is an Ethereum-compatible Layer 1 blockchain built on the Cosmos SDK, supported by Crypto.com. It scales DeFi, GameFi, and NFTs by enabling instant porting of Ethereum dApps. SyncFlow agents operate on Cronos to facilitate high-speed, low-cost autonomous transactions.";
             }
 
-            if (lowerMessage.includes('what is sui') || lowerMessage.includes('whats sui') || lowerMessage.includes('sui')) {
-                return "Sui is a high-performance Layer 1 blockchain and smart contract platform designed to make digital asset ownership fast, private, secure, and accessible to everyone. It uses the Move programming language for efficient, parallel execution of transactions.";
+            if (lowerMessage.includes('sui')) {
+                return "Sui is an innovative Layer 1 blockchain designed for digital asset ownership. While SyncFlow primary focus is the Cronos ecosystem, we share the vision of high-performance Web3! Is there something specific you'd like to check on Cronos?";
             }
 
-            if (lowerMessage.includes('what is eth') || lowerMessage.includes('whats ethereum') || lowerMessage.includes('eth')) {
-                return "Ethereum (ETH) is a decentralized, open-source blockchain with smart contract functionality. It is the second-largest cryptocurrency by market cap and the foundation for much of DeFi and NFTs. Cronos is fully EVM-compatible with Ethereum!";
+            if (lowerMessage.includes('eth') || lowerMessage.includes('ethereum')) {
+                return "Ethereum (ETH) is the pioneer of smart contract blockchains. Cronos is fully EVM-compatible, meaning your SyncFlow agent uses the same address format (0x...) and similar logic as Ethereum!";
             }
 
             if (lowerMessage.includes('x402') || lowerMessage.includes('l402')) {
@@ -218,29 +219,35 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             const amountMatch = lowerMessage.match(/(\d+(\.\d+)?)\s*(cro|tcro)/i);
             const toAddressMatch = message.match(/0x[a-fA-F0-9]{40}/);
 
-            if ((lowerMessage.includes('send') || lowerMessage.includes('transfer')) && amountMatch && toAddressMatch) {
-                const amount = amountMatch[1];
-                const recipient = toAddressMatch[0];
+            if (lowerMessage.includes('send') || lowerMessage.includes('transfer')) {
+                if (amountMatch && toAddressMatch) {
+                    const amount = amountMatch[1];
+                    const recipient = toAddressMatch[0];
 
-                const x402Handler = new X402Handler();
-                const quote = await x402Handler.processPayment({
-                    token: 'CRO',
-                    amount: amount,
-                    recipient: recipient
-                });
-
-                return JSON.stringify({
-                    type: "transaction_proposal",
-                    data: {
-                        to: recipient,
+                    const x402Handler = new X402Handler();
+                    const quote = await x402Handler.processPayment({
+                        token: 'CRO',
                         amount: amount,
-                        token: "CRO",
-                        protocol: "x402",
-                        quoteId: quote.quoteId,
-                        agentId: "syncflow-agent"
-                    },
-                    message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
-                });
+                        recipient: recipient
+                    });
+
+                    return JSON.stringify({
+                        type: "transaction_proposal",
+                        data: {
+                            to: recipient,
+                            amount: amount,
+                            token: "CRO",
+                            protocol: "x402",
+                            quoteId: quote.quoteId,
+                            agentId: "syncflow-agent"
+                        },
+                        message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
+                    });
+                } else if (amountMatch) {
+                    return `I see you want to send **${amountMatch[0]}**. Please provide a recipient wallet address (e.g., \`0x...\`) to proceed with the transaction.`;
+                } else {
+                    return "To propose a transaction, please include an amount and a recipient address. For example: 'Send 10 CRO to 0x...'";
+                }
             }
 
             // 5. Batch Distribution (Localized)
