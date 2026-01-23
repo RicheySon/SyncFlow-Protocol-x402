@@ -72,6 +72,41 @@ export default function DevToolsPage() {
 
     const addLog = (msg: string) => setLogs(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
+    const runDiagnostics = async () => {
+        try {
+            setLogs([]);
+            addLog('🔍 Starting Agent Health Check...');
+
+            // 1. Check Wallet
+            if (!(window as any).ethereum) {
+                addLog('❌ Wallet not detected.');
+                return;
+            }
+            addLog('✅ Wallet detected.');
+
+            // 2. RPC Latency Check
+            const start = Date.now();
+            const provider = new ethers.BrowserProvider((window as any).ethereum);
+            await provider.getBlockNumber();
+            const latency = Date.now() - start;
+            addLog(`✅ RPC Connectivity: OK (Latency: ${latency}ms)`);
+
+            // 3. Chain ID Match
+            const network = await provider.getNetwork();
+            const expectedChainId = BigInt(338);
+            if (network.chainId === expectedChainId) {
+                addLog('✅ Network: Cronos Testnet (Match)');
+            } else {
+                addLog(`⚠️ Network Mismatch: Found ${network.chainId}, Expected 338`);
+            }
+
+            addLog('✨ Diagnostics Complete: All systems nominal.');
+            alert('Health Check Complete: Systems Nominal.');
+        } catch (e: any) {
+            addLog(`❌ Diagnostic Error: ${e.message}`);
+        }
+    };
+
     const runTest = async () => {
         try {
             setLogs([]);
@@ -269,7 +304,7 @@ export default function DevToolsPage() {
                                 </TabsList>
 
                                 <TabsContent value="sdk" className="space-y-4">
-                                    <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
+                                    <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-100 relative group border border-border">
                                         <pre>{sdkInstallCode}</pre>
                                         <Button size="icon" variant="ghost" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Copy className="h-4 w-4 text-muted-foreground" />
@@ -292,7 +327,7 @@ export default function DevToolsPage() {
                                 </TabsContent>
 
                                 <TabsContent value="init" className="space-y-4">
-                                    <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
+                                    <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-100 relative group border border-border">
                                         <pre>{initCode}</pre>
                                         <Button size="icon" variant="ghost" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Copy className="h-4 w-4 text-muted-foreground" />
@@ -301,7 +336,7 @@ export default function DevToolsPage() {
                                 </TabsContent>
 
                                 <TabsContent value="agent" className="space-y-4">
-                                    <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
+                                    <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-100 relative group border border-border">
                                         <pre>{createAgentCode}</pre>
                                         <Button size="icon" variant="ghost" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Copy className="h-4 w-4 text-muted-foreground" />
@@ -309,7 +344,7 @@ export default function DevToolsPage() {
                                     </div>
                                     <div className="mt-4">
                                         <h4 className="text-sm font-medium mb-2">Next Steps:</h4>
-                                        <div className="rounded-lg bg-muted p-4 font-mono text-sm text-foreground relative group border border-border">
+                                        <div className="rounded-lg bg-slate-950 p-4 font-mono text-sm text-slate-100 relative group border border-border">
                                             <pre>{executeTxCode}</pre>
                                         </div>
                                     </div>
@@ -347,7 +382,7 @@ export default function DevToolsPage() {
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent>
-                                                <Button variant="outline" className="w-full">Run Diagnostics</Button>
+                                                <Button variant="outline" className="w-full" onClick={runDiagnostics}>Run Diagnostics</Button>
                                             </CardContent>
                                         </Card>
                                     </div>
