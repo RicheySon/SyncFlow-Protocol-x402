@@ -56,7 +56,7 @@ export class CdcAgentService {
         }
     }
 
-    private async getAIResponse(message: string): Promise<string> {
+    private async getAIResponse(message: string, userId?: string): Promise<string> {
         const currentDate = new Date().toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
@@ -64,52 +64,203 @@ export class CdcAgentService {
             day: 'numeric'
         });
 
-        const systemPrompt = `You are a helpful blockchain assistant for the Cronos network.
+        const systemPrompt = `You are a professional SyncFlow AI Assistant on the Cronos Network.
 Current Date: ${currentDate}
 
-You can help users:
-- Get the latest block information
-- Check wallet balances (provide an address)
-- View transaction details (provide a tx hash)
-- General blockchain questions
+Your purpose is to help users interact with the blockchain using natural language.
+You have access to specific tools to fetch data and propose transactions.
 
-Respond conversationally. If a user asks for blockchain data but doesn't provide required info (like an address), politely ask for it.`;
+Tone: Professional, helpful, and concise.
+When a user expresses intent (e.g., "send money", "check my wallet"), use the appropriate tool.
+If a tool execution requires parameters the user hasn't provided, ask for them politely.
+
+SyncFlow Protocol details:
+- SyncFlow uses the X402 protocol for secure payments.
+- When proposing a transaction, you generate a special JSON structure (via tools) that the UI understands.
+- You can help manage "Agents" and their "Recipients" for batch distributions.`;
 
         // Attempt Failover Logic
         const providers: ('openai' | 'gemini')[] = [];
         if (this.openai) providers.push('openai');
         if (this.gemini) providers.push('gemini');
 
-        const missingOpenAI = !this.openai;
-        const missingGemini = !this.gemini;
-
-        if (missingOpenAI && missingGemini) {
-            return `[AI Service Alert] [v5]: No AI API keys were found in your Vercel Environment Variables. Please set GEMINI_API_KEY or OPENAI_API_KEY and redeploy.`;
+        if (!this.openai && !this.gemini) {
+            return `[AI Service Alert]: No AI API keys found. Please set GEMINI_API_KEY or OPENAI_API_KEY.`;
         }
 
-        // Prioritize the currently activeAI
         const sortedProviders = providers.sort((a) => a === this.activeAI ? -1 : 1);
-
         const errors: string[] = [];
+
         for (const provider of sortedProviders) {
             try {
-                if (provider === 'gemini' && this.gemini) {
-                    const model = this.gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
-                    const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
-                    const responseText = result.response.text();
-                    if (responseText) return responseText;
-                } else if (provider === 'openai' && this.openai) {
-                    const completion = await this.openai.chat.completions.create({
+                if (provider === 'openai' && this.openai) {
+                    const tools: any[] = [
+                        {
+                            type: "function",
+                            function: {
+                                name: "get_latest_block",
+                                description: "Retrieve information about the latest block or a specific block height on Cronos.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        tag: { type: "string", description: "Block tag (e.g. 'latest') or height", default: "latest" }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            type: "function",
+                            function: {
+                                name: "get_balance",
+                                description: "Check the CRO balance of a specific Cronos wallet address.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        address: { type: "string", description: "The 0x... wallet address to check" }
+                                    },
+                                    required: ["address"]
+                                }
+                            }
+                        },
+                        {
+                            type: "function",
+                            function: {
+                                name: "get_transaction",
+                                description: "Get details and status for a specific transaction hash.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        txHash: { type: "string", description: "The 0x... transaction hash" }
+                                    },
+                                    required: ["txHash"]
+                                }
+                            }
+                        },
+                        {
+                            type: "function",
+                            function: {
+                                name: "propose_payment",
+                                description: "Prepare a transaction proposal for the user to sign. Use this when the user wants to send/transfer funds.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {
+                                        to: { type: "string", description: "Recipient 0x... address" },
+                                        amount: { type: "string", description: "Amount of CRO to send" },
+                                        token: { type: "string", description: "Token symbol (e.g. CRO)", default: "CRO" }
+                                    },
+                                    required: ["to", "amount"]
+                                }
+                            }
+                        },
+                        {
+                            type: "function",
+                            function: {
+                                name: "batch_distribute",
+                                description: "Trigger a batch payout to all recipients configured for the user's active agent.",
+                                parameters: {
+                                    type: "object",
+                                    properties: {}
+                                }
+                            }
+                        }
+                    ];
+
+                    const response = await this.openai.chat.completions.create({
                         model: 'gpt-4o-mini',
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: message }
                         ],
-                        temperature: 0.7,
-                        max_tokens: 500
+                        tools,
+                        tool_choice: "auto"
                     });
-                    const content = completion.choices[0]?.message?.content;
-                    if (content) return content;
+
+                    const responseMessage = response.choices[0].message;
+
+                    if (responseMessage.tool_calls) {
+                        for (const toolCall of responseMessage.tool_calls) {
+                            const functionName = toolCall.function.name;
+                            const args = JSON.parse(toolCall.function.arguments);
+
+                            if (functionName === "get_latest_block") {
+                                const res = await Block.getBlockByTag(args.tag || 'latest');
+                                return `Latest Block Information:\n${JSON.stringify((res as any).data, null, 2)}`;
+                            }
+
+                            if (functionName === "get_balance") {
+                                const res = await Wallet.balance(args.address);
+                                return `Balance for ${args.address}:\n${JSON.stringify((res as any).data, null, 2)}`;
+                            }
+
+                            if (functionName === "get_transaction") {
+                                const res = await Transaction.getTransactionByHash(args.txHash);
+                                return `Transaction Details:\n${JSON.stringify((res as any).data, null, 2)}`;
+                            }
+
+                            if (functionName === "propose_payment") {
+                                const x402Handler = new X402Handler();
+                                const quote = await x402Handler.processPayment({
+                                    token: args.token || 'CRO',
+                                    amount: args.amount,
+                                    recipient: args.to
+                                });
+
+                                return JSON.stringify({
+                                    type: "transaction_proposal",
+                                    data: {
+                                        to: args.to,
+                                        amount: args.amount,
+                                        token: args.token || "CRO",
+                                        protocol: "x402",
+                                        quoteId: quote.quoteId,
+                                        agentId: "syncflow-agent"
+                                    },
+                                    message: `I've prepared an **X402 Protocol** payment of **${args.amount} CRO** to \`${args.to}\`.\nPlease review and sign below.`
+                                });
+                            }
+
+                            if (functionName === "batch_distribute") {
+                                if (!userId) return "I need your user ID to look up your agent's recipients.";
+
+                                const agent = await (prisma.agent as any).findFirst({
+                                    where: { userId, status: 'Active' },
+                                    include: { recipients: true }
+                                });
+
+                                if (!agent) return "You don't have an active agent configured for batch distribution.";
+                                if (agent.recipients.length === 0) return `Agent **${agent.name}** has no recipients.`;
+
+                                const totalAmount = (agent.recipients as any[]).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+
+                                return JSON.stringify({
+                                    type: "transaction_proposal",
+                                    isBatch: true,
+                                    data: {
+                                        agentId: agent.id,
+                                        agentName: agent.name,
+                                        recipients: (agent.recipients as any[]).map((r: any) => ({
+                                            name: r.name,
+                                            address: r.address,
+                                            amount: r.amount,
+                                            currency: r.currency
+                                        })),
+                                        totalAmount,
+                                        token: "CRO",
+                                        protocol: "x402"
+                                    },
+                                    message: `I've prepared a **Batch Distribution** for **${agent.name}** (${agent.recipients.length} recipients, total ${totalAmount} CRO).`
+                                });
+                            }
+                        }
+                    }
+
+                    return responseMessage.content || "I'm not sure how to respond to that.";
+
+                } else if (provider === 'gemini' && this.gemini) {
+                    // Gemini fallback (standard text for now, or could use Gemini function calling)
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
+                    const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
+                    return result.response.text();
                 }
             } catch (err: any) {
                 console.error(`${provider} AI error:`, err.message);
@@ -118,195 +269,37 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             }
         }
 
-        return `[AI Service Alert] [v10]: AI providers failed. \nDiagnostics:\n- ${errors.join('\n- ')}\n\n💡 *Tip: Check your API keys and quotas in .env or the provider dashboard.*`;
+        return `[AI Service Alert]: Providers failed. Errors: ${errors.join(', ')}`;
     }
 
     async processMessage(message: string, context?: any, userId?: string): Promise<string> {
         if (!this.initialized) {
-            return `[Setup Required]: Please configure CDC_DASHBOARD_API_KEY in your Vercel Environment Variables.`;
+            return `[Setup Required]: Please configure CDC_DASHBOARD_API_KEY.`;
         }
 
         try {
             const lowerMessage = message.toLowerCase();
-            let aiResponse = '';
 
-            // 1. Immediate Local Checks (Fast Path & Fallback)
-            if (lowerMessage.includes('date') || lowerMessage.includes('today')) {
-                return `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
-            }
-
-            if (lowerMessage === 'hi' || lowerMessage === 'hello' || lowerMessage === 'hey') {
-                return "Hello! I'm your SyncFlow AI Agent. How can I help you with the Cronos blockchain today?";
-            }
-
-            if (lowerMessage.includes('what is blockchain') || lowerMessage.includes('whats blockchain') || lowerMessage.includes('what is block')) {
-                return "A blockchain is a decentralized, distributed ledger that records transactions across many computers. On Cronos, this allows for secure, transparent smart contracts! Is there a specific block you're looking for? Try 'latest block'.";
-            }
-
-            if (lowerMessage.includes('what is btc') || lowerMessage.includes('whats btc') || lowerMessage.includes('what is bitcoin')) {
-                return "Bitcoin (BTC) is the first decentralized cryptocurrency, a digital asset which uses cryptography to secure its transactions. While SyncFlow focus is on Cronos (CRO) and L402 protocols, BTC remains the 'digital gold' of the industry.";
-            }
-
-            if (lowerMessage.includes('cronos')) {
-                return "The **Cronos Network** is an Ethereum-compatible Layer 1 blockchain built on the Cosmos SDK, supported by Crypto.com. It scales DeFi, GameFi, and NFTs by enabling instant porting of Ethereum dApps. SyncFlow agents operate on Cronos to facilitate high-speed, low-cost autonomous transactions.";
-            }
-
-            if (lowerMessage.includes('sui')) {
-                return "Sui is an innovative Layer 1 blockchain designed for digital asset ownership. While SyncFlow primary focus is the Cronos ecosystem, we share the vision of high-performance Web3! Is there something specific you'd like to check on Cronos?";
-            }
-
-            if (lowerMessage.includes('eth') || lowerMessage.includes('ethereum')) {
-                return "Ethereum (ETH) is the pioneer of smart contract blockchains. Cronos is fully EVM-compatible, meaning your SyncFlow agent uses the same address format (0x...) and similar logic as Ethereum!";
-            }
-
-            if (lowerMessage.includes('x402') || lowerMessage.includes('l402')) {
-                return "The **X402 Protocol** is a standard for machine-to-machine payments using the Cronos blockchain. It's based on the L402 standard (originally from Bitcoin Lightning) which combines HTTP 402 'Payment Required' status codes with macaroon-based authentication. In SyncFlow, X402 allows your agents to pay for services autonomously using CRO!";
+            // 1. Core Logic (Localized)
+            if (lowerMessage === 'hi' || lowerMessage === 'hello') {
+                return "Hello! I'm your SyncFlow AI Agent. How can I help you with Cronos today?";
             }
 
             if (lowerMessage.includes('debug status')) {
                 const providers = [];
                 if (this.openai) providers.push('OpenAI');
                 if (this.gemini) providers.push('Gemini');
-                return `**System Status Check [v8]**:\n- Database: Connected\n- CDC Platform: ${this.initialized ? 'Ready' : 'Not Set'}\n- AI Providers: ${providers.length > 0 ? providers.join(', ') : 'None detected'}\n- Active Node: Cronos Testnet`;
+                return `**System Status Check [v10]**:\n- CDC Platform: Ready\n- AI Tools: Active (OpenAI Tool Calling enabled)\n- Node: Cronos Testnet`;
             }
 
-            if (lowerMessage.includes('api')) {
-                return "The SyncFlow API provides endpoints for transaction management, agent configuration, and AI-driven workflow execution. You can explore the `/api/transactions` and `/api/chat/history` routes for more details.";
-            }
-
-            if (lowerMessage.includes('dorahacks')) {
-                return "DoraHacks is a global hackathon community and Web3 developer platform. SyncFlow is built specifically to demonstrate the power of autonomous agents on Cronos for the current DoraHacks event!";
-            }
-
-            if (lowerMessage.includes('syncflow') || lowerMessage.includes('what is this')) {
-                return "SyncFlow is an autonomous protocol for agents on the Cronos blockchain. It enables 'Syncing' off-chain intent with on-chain execution through X402 payments and the Crypto.com AI Agent SDK.";
-            }
-
-            if (lowerMessage.includes('time')) {
-                return `The current server time is ${new Date().toLocaleTimeString('en-US')}.`;
-            }
-
-            // 2. Fetch Latest Block logic (Localized)
-            if (lowerMessage.includes('latest block') || lowerMessage.includes('current block') || lowerMessage.includes('last block')) {
-                // Add 5s timeout to prevent hanging
-                const blockPromise = Block.getBlockByTag('latest');
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching block')), 5000));
-
-                try {
-                    const response = await Promise.race([blockPromise, timeoutPromise]) as any;
-                    return `Latest Block Information:\n${JSON.stringify(response.data, null, 2)}`;
-                } catch (e) {
-                    return `Failed to fetch block info: ${(e as Error).message}. Check RPC connection.`;
-                }
-            }
-
-            // 3. Balance & Tx lookups (Localized)
-            const addressMatch = message.match(/0x[a-fA-F0-9]{38,42}/);
-            if ((lowerMessage.includes('balance') || lowerMessage.includes('wallet')) && addressMatch) {
-                const address = addressMatch[0];
-                const response = await Wallet.balance(address);
-                return `Balance for ${address}:\n${JSON.stringify(response.data, null, 2)}`;
-            }
-
-            const txHashMatch = message.match(/0x[a-fA-F0-9]{64}/);
-            if ((lowerMessage.includes('transaction') || lowerMessage.includes('tx')) && txHashMatch) {
-                const txHash = txHashMatch[0];
-                const response = await Transaction.getTransactionByHash(txHash);
-                return `Transaction Details:\n${JSON.stringify(response.data, null, 2)}`;
-            }
-
-            // 4. Transaction Proposals (Localized)
-            const amountMatch = lowerMessage.match(/(\d+(\.\d+)?)\s*(cro|tcro)/i);
-            const toAddressMatch = message.match(/0x[a-fA-F0-9]{40}/);
-
-            if (lowerMessage.includes('send') || lowerMessage.includes('transfer')) {
-                if (amountMatch && toAddressMatch) {
-                    const amount = amountMatch[1];
-                    const recipient = toAddressMatch[0];
-
-                    const x402Handler = new X402Handler();
-                    const quote = await x402Handler.processPayment({
-                        token: 'CRO',
-                        amount: amount,
-                        recipient: recipient
-                    });
-
-                    return JSON.stringify({
-                        type: "transaction_proposal",
-                        data: {
-                            to: recipient,
-                            amount: amount,
-                            token: "CRO",
-                            protocol: "x402",
-                            quoteId: quote.quoteId,
-                            agentId: "syncflow-agent"
-                        },
-                        message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`
-                    });
-                } else if (amountMatch) {
-                    return `I see you want to send **${amountMatch[0]}**. Please provide a recipient wallet address (e.g., \`0x...\`) to proceed with the transaction.`;
-                } else {
-                    return "To propose a transaction, please include an amount and a recipient address. For example: 'Send 10 CRO to 0x...'";
-                }
-            }
-
-            // 5. Batch Distribution (Localized)
-            const batchIntent = lowerMessage.includes('pay everyone') ||
-                lowerMessage.includes('distribute') ||
-                lowerMessage.includes('payroll') ||
-                lowerMessage.includes('batch pay');
-
-            if (batchIntent && userId) {
-                // Fetch the user's active agent (simplification: first active agent)
-                const agent = await (prisma.agent as any).findFirst({
-                    where: { userId, status: 'Active' },
-                    include: { recipients: true }
-                });
-
-                if (!agent) {
-                    return "You don't have an active agent to perform a batch distribution. Please create and activate an agent first.";
-                }
-
-                if (agent.recipients.length === 0) {
-                    return `Your agent **${agent.name}** doesn't have any sub-users/recipients configured. Add some recipients in the Agent Details page first.`;
-                }
-
-                const totalAmount = (agent.recipients as any[]).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
-
-                return JSON.stringify({
-                    type: "transaction_proposal",
-                    isBatch: true,
-                    data: {
-                        agentId: agent.id,
-                        agentName: agent.name,
-                        recipients: (agent.recipients as any[]).map((r: any) => ({
-                            name: r.name,
-                            address: r.address,
-                            amount: r.amount,
-                            currency: r.currency
-                        })),
-                        totalAmount,
-                        token: "CRO",
-                        protocol: "x402"
-                    },
-                    message: `I've prepared a **Batch Distribution** for agent **${agent.name}**.\n\n` +
-                        `This will distribute a total of **${totalAmount} CRO** among **${agent.recipients.length} recipients** using the X402 protocol.\n\n` +
-                        `Please review the summary and sign the batch transaction.`
-                });
-            }
-
-            // 6. If it's none of the above, try AI
+            // 2. Delegate to AI with Tool Calling
             if (this.activeAI !== 'none') {
-                aiResponse = await this.getAIResponse(message);
+                return await this.getAIResponse(message, userId);
             }
-
-            if (aiResponse) return aiResponse;
-
-            return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "tx 0x..." - View transaction details\n• "send 0.1 CRO to 0x..." - Propose a payment`;
-
+            return `I can help you with:\n• "latest block" - Get current block info\n• "balance 0x..." - Check wallet balance\n• "send 0.1 CRO to 0x..." - Propose a payment`;
         } catch (error: any) {
             console.error('Error processing message:', error);
-            return `[Error]: ${error.message || 'Failed to process your request'}`;
+            return `[Error]: ${error.message || 'Failed to process request'}`;
         }
     }
 }
