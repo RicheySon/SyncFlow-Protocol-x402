@@ -91,8 +91,8 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
         for (const provider of sortedProviders) {
             try {
                 if (provider === 'gemini' && this.gemini) {
-                    // Try the latest stable flash model
-                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                    // Switch to 1.5-pro which is often more reliable for complex queries
+                    const model = this.gemini.getGenerativeModel({ model: 'gemini-1.5-pro' });
                     const result = await model.generateContent(`${systemPrompt}\n\nUser: ${message}`);
                     return result.response.text();
                 } else if (provider === 'openai' && this.openai) {
@@ -163,7 +163,23 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                 const providers = [];
                 if (this.openai) providers.push('OpenAI');
                 if (this.gemini) providers.push('Gemini');
-                return `**System Status Check [v5]**:\n- Database: Connected\n- CDC Platform: ${this.initialized ? 'Ready' : 'Not Set'}\n- AI Providers: ${providers.length > 0 ? providers.join(', ') : 'None detected'}\n- Active Node: Cronos Testnet`;
+                return `**System Status Check [v6]**:\n- Database: Connected\n- CDC Platform: ${this.initialized ? 'Ready' : 'Not Set'}\n- AI Providers: ${providers.length > 0 ? providers.join(', ') : 'None detected'}\n- Active Node: Cronos Testnet`;
+            }
+
+            if (lowerMessage.includes('api')) {
+                return "The SyncFlow API provides endpoints for transaction management, agent configuration, and AI-driven workflow execution. You can explore the `/api/transactions` and `/api/chat/history` routes for more details.";
+            }
+
+            if (lowerMessage.includes('dorahacks')) {
+                return "DoraHacks is a global hackathon community and Web3 developer platform. SyncFlow is built specifically to demonstrate the power of autonomous agents on Cronos for the current DoraHacks event!";
+            }
+
+            if (lowerMessage.includes('syncflow') || lowerMessage.includes('what is this')) {
+                return "SyncFlow is an autonomous protocol for agents on the Cronos blockchain. It enables 'Syncing' off-chain intent with on-chain execution through X402 payments and the Crypto.com AI Agent SDK.";
+            }
+
+            if (lowerMessage.includes('time')) {
+                return `The current server time is ${new Date().toLocaleTimeString('en-US')}.`;
             }
 
             // 2. Fetch Latest Block logic (Localized)
