@@ -17,7 +17,7 @@ export class CdcAgentService {
         try {
             const CDC_KEY = process.env.CDC_DASHBOARD_API_KEY;
             const RPC_URL = process.env.CRONOS_RPC_URL || 'https://evm-t3.cronos.org';
-            const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCn8KkHQB3goUwa2yew-EKMt2UKHK9MX4o';
+            const GEMINI_KEY = process.env.GEMINI_API_KEY;
             const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
             // Initialize Developer Platform Client
