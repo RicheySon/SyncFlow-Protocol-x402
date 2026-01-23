@@ -20,6 +20,8 @@ import { Button } from '../ui/button';
 import { ModeToggle } from '../mode-toggle';
 import { UserManager } from '../../lib/api';
 import { authApi } from '../../lib/api/auth';
+import { getWalletState } from '../../lib/wallet';
+import { Wallet } from 'lucide-react';
 
 const navigation = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -39,11 +41,36 @@ export function DashboardSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const [user, setUser] = useState<UserData | null>(null);
+    const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
     useEffect(() => {
         const userData = UserManager.getUser();
         if (userData) {
             setUser(userData);
+        }
+
+        // Check wallet state
+        const checkWallet = async () => {
+            const state = await getWalletState();
+            if (state.isConnected) {
+                setWalletAddress(state.address);
+            }
+        };
+        checkWallet();
+
+        // Listen for wallet changes
+        if (typeof window !== 'undefined' && window.ethereum) {
+            const handleAccountsChanged = (accounts: string[]) => {
+                if (accounts.length > 0) {
+                    setWalletAddress(accounts[0]);
+                } else {
+                    setWalletAddress(null);
+                }
+            };
+            window.ethereum.on('accountsChanged', handleAccountsChanged);
+            return () => {
+                window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+            };
         }
     }, []);
 
@@ -97,7 +124,13 @@ export function DashboardSidebar() {
                     </div>
                     <div className="flex-1 overflow-hidden">
                         <p className="text-sm font-medium">{user?.name || 'User'}</p>
-                        <p className="truncate text-xs text-muted-foreground">{user?.email || 'Loading...'}</p>
+                        <p className="truncate text-[10px] text-muted-foreground">{user?.email || 'Loading...'}</p>
+                        {walletAddress && (
+                            <div className="flex items-center gap-1 mt-0.5 text-indigo-400">
+                                <Wallet className="h-2 w-2" />
+                                <span className="text-[10px] font-mono">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                            </div>
+                        )}
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
                         <LogOut className="h-4 w-4" />

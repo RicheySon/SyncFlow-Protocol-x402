@@ -12,7 +12,8 @@ import {
     Trash2,
     Wallet,
     Activity,
-    Bot
+    Bot,
+    Copy
 } from 'lucide-react';
 import {
     Dialog,
@@ -271,9 +272,24 @@ export default function AgentsPage() {
                                             <span className="text-muted-foreground flex items-center gap-1">
                                                 <Wallet className="h-3 w-3" /> Wallet
                                             </span>
-                                            <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded" title={agent.walletAddress}>
-                                                {agent.walletAddress.slice(0, 6)}...{agent.walletAddress.slice(-4)}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded" title={agent.walletAddress}>
+                                                    {agent.walletAddress.slice(0, 6)}...{agent.walletAddress.slice(-4)}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        navigator.clipboard.writeText(agent.walletAddress || '');
+                                                        alert('Address copied!');
+                                                    }}
+                                                >
+                                                    <Copy className="h-3 w-3" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     )}
                                     {agent.description && (

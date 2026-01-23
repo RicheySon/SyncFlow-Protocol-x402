@@ -1195,7 +1195,21 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
                         </Badge>
                     </h1>
                     <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <span className="font-mono text-xs text-slate-500">{agent.id}</span>
+                        <span className="font-mono text-xs text-slate-500" title="Internal ID">{agent.id}</span>
+                        <span className="text-slate-600">•</span>
+                        <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-[10px] text-indigo-400 font-mono" title="Agent Smart Wallet">
+                            <Wallet className="h-2.5 w-2.5" />
+                            <span>{agent.walletAddress || 'Not Deployed'}</span>
+                            <Copy
+                                className="h-2.5 w-2.5 ml-1 cursor-pointer hover:text-white transition-colors"
+                                onClick={() => {
+                                    if (agent.walletAddress) {
+                                        navigator.clipboard.writeText(agent.walletAddress);
+                                        alert('Address copied!');
+                                    }
+                                }}
+                            />
+                        </div>
                         <span className="text-slate-600">•</span>
                         <Badge variant="outline" className="text-xs bg-slate-900 border-slate-800 capitalize">{agent.type}</Badge>
                     </p>
