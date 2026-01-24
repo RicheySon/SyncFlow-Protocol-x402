@@ -1105,7 +1105,10 @@ export default function AgentDetailPage({ params }: { params: { id: string } }) 
             // Update local state
             setAgent(prev => prev ? ({ ...prev, walletAddress: result.address }) : null);
             setNeedsDeployment(false);
-            alert('Agent Deployed Successfully! Address: ' + result.address);
+            setNeedsDeployment(false);
+            alert(`Agent Deployed Successfully!\n\nNew Address: ${result.address}\n\nIMPORTANT: This is a fresh contract with 0 balance. Please click 'Deposit' to fund it before attempting any payments.`);
+            // Refresh balance immediately (will be 0, but good to reset state)
+            fetchBalance();
         } catch (err: any) {
             alert('Deployment failed: ' + err.message);
         } finally {
