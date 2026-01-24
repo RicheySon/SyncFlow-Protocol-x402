@@ -277,10 +277,10 @@ export function ChatInterface() {
                     </div>
                     <div>
                         <CardTitle className="flex items-center gap-2">
-                            SyncFlow AI
+                            SyncFlow AI Agent
                             <Sparkles className="h-4 w-4 text-secondary animate-pulse" />
                         </CardTitle>
-                        <CardDescription>Powered by Crypto.com AI Agent SDK</CardDescription>
+                        <CardDescription>Autonomous execution powered by CDC SDK</CardDescription>
                     </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={clearChat} title="Clear Chat History" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
@@ -386,6 +386,34 @@ export function ChatInterface() {
                         </div>
                     )}
                     <div ref={messagesEndRef} />
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="px-4 py-2 flex items-center gap-2 border-t border-border/50 overflow-x-auto scrollbar-none">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[10px] h-7 bg-primary/5 hover:bg-primary/10 border-primary/20"
+                        onClick={() => setInput("Check balance of ")}
+                    >
+                        🔍 Check Balance
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[10px] h-7 bg-secondary/5 hover:bg-secondary/10 border-secondary/20"
+                        onClick={() => setInput("Execute payment of 1 CRO to ")}
+                    >
+                        ⚡ Agent Execute
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[10px] h-7 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20"
+                        onClick={() => setInput("Send 10 CRO to ")}
+                    >
+                        💸 Simple Transfer
+                    </Button>
                 </div>
 
                 <div className="p-4 border-t border-border bg-muted/10">
