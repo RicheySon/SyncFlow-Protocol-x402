@@ -56,9 +56,9 @@ export function getCryptoComClient(): CryptoComClient {
             if (process.env.NODE_ENV === 'development') {
                 console.log(`[CryptoCom SDK] Initialized for Chain ID ${CHAIN_ID} (${CHAIN_ID === 25 ? 'Mainnet' : 'Testnet'})`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('[CryptoCom SDK] Failed to initialize client:', error);
-            throw new Error('Failed to initialize Crypto.com Developer Platform Client');
+            throw new Error(`Failed to initialize Crypto.com Developer Platform Client: ${error.message || 'Unknown error'}`);
         }
     }
 
