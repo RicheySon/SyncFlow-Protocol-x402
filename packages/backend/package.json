@@ -21,6 +21,12 @@
         "@crypto.com/facilitator-client": "^1.0.4",
         "@google/generative-ai": "^0.24.1",
         "@prisma/client": "^5.7.1",
+        "@types/bcryptjs": "^2.4.6",
+        "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
+        "@types/jsonwebtoken": "^9.0.5",
+        "@types/morgan": "^1.9.10",
+        "@types/node": "^20.10.0",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
@@ -31,24 +37,18 @@
         "jsonwebtoken": "^9.0.2",
         "morgan": "^1.10.1",
         "openai": "^6.15.0",
+        "typescript": "^5.3.2",
         "winston": "^3.19.0",
         "zod": "^3.22.4"
     },
     "devDependencies": {
-        "@types/bcryptjs": "^2.4.6",
-        "@types/cors": "^2.8.17",
-        "@types/express": "^4.17.21",
         "@types/jest": "^29.5.14",
-        "@types/jsonwebtoken": "^9.0.5",
-        "@types/morgan": "^1.9.10",
-        "@types/node": "^20.10.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",
         "eslint": "^8.55.0",
         "jest": "^29.7.0",
         "prisma": "^5.7.1",
         "ts-jest": "^29.4.6",
-        "tsx": "^4.7.0",
-        "typescript": "^5.3.2"
+        "tsx": "^4.7.0"
     }
 }
