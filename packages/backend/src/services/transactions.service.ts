@@ -8,7 +8,7 @@ export class TransactionsService {
             select: { id: true },
         });
 
-        const agentIds = userAgents.map((agent) => agent.id);
+        const agentIds = userAgents.map((agent: { id: string }) => agent.id);
 
         const transactions = await prisma.transaction.findMany({
             where: {
