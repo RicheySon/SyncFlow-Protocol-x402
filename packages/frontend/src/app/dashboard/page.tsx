@@ -37,6 +37,7 @@ import {
 } from 'recharts';
 import { agentsApi } from '../../lib/api/agents';
 import { transactionsApi } from '../../lib/api/transactions';
+import { ConfigurationStatus } from '../../components/ConfigurationStatus';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -154,6 +155,9 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-12">
+            {/* Configuration Status */}
+            <ConfigurationStatus />
+
             {/* Hero Section with Floating Cards */}
             <div className="relative min-h-[500px] flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-primary/5 via-background to-secondary/5 border border-border p-8">
                 {/* Background Grid */}

@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Anthropic from '@anthropic-ai/sdk';
 import { X402Handler } from './core/x402/X402Handler';
+import { CryptoComAgent } from './core/CryptoComAgent';
 
 /**
  * SyncFlow AI Agent Service
@@ -75,16 +76,24 @@ export class CdcAgentService {
             day: 'numeric'
         });
 
-        const systemPrompt = `You are a helpful blockchain assistant for the Cronos network.
+        const systemPrompt = `You are SyncFlow AI, a knowledgeable and helpful AI assistant with both general knowledge and blockchain expertise.
+
 Current Date: ${currentDate}
 
-You can help users:
-- Get the latest block information
-- Check wallet balances (provide an address)
-- View transaction details (provide a tx hash)
-- General blockchain questions
+**Your Capabilities:**
+- **General Knowledge**: Answer questions on any topic (history, science, coding, advice, entertainment, etc.)
+- **Blockchain Expertise**: Specializing in Cronos network, DeFi, smart contracts, and Web3
+- **SyncFlow Platform**: Help users understand autonomous agents, x402 payments, and DeFi automation
 
-Respond conversationally. If a user asks for blockchain data but doesn't provide required info (like an address), politely ask for it.`;
+**Blockchain Commands (when users ask):**
+- Get latest block information
+- Check wallet balances (need an address)
+- View transaction details (need a tx hash)
+- Explain blockchain concepts
+
+**Personality**: Be friendly, conversational, and helpful. Provide clear, concise explanations. If users ask about blockchain data and don't provide required info (like addresses), politely ask for it.
+
+Remember: You can discuss ANY topic, not just blockchain. Be a helpful general-purpose assistant!`;
 
         try {
             if (this.activeAI === 'gemini' && this.gemini) {
@@ -130,7 +139,7 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                     throw new Error(`Ollama API error: ${response.statusText}`);
                 }
 
-                const data = await response.json();
+                const data = await response.json() as any;
                 return data.response || '';
             }
 
@@ -209,11 +218,25 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
             // Regex to find address: 0x...
             const toAddressMatch = message.match(/0x[a-fA-F0-9]{40}/);
 
-            if ((lowerMessage.includes('send') || lowerMessage.includes('transfer')) && amountMatch && toAddressMatch) {
+            if ((lowerMessage.includes('send') || lowerMessage.includes('transfer') || lowerMessage.includes('execute')) && amountMatch && toAddressMatch) {
                 const amount = amountMatch[1];
                 const recipient = toAddressMatch[0];
 
-                // Use X402 Handler to prepare the payment
+                // Check if user specifically requested AUTONOMOUS execution
+                const isAutonomous = lowerMessage.includes('execute') || lowerMessage.includes('agent pay');
+
+                if (isAutonomous && env.PRIVATE_KEY) {
+                    try {
+                        const agent = new CryptoComAgent(env.PRIVATE_KEY);
+                        const result = await agent.execute('transfer', { to: recipient, amount });
+
+                        return `🚀 **Autonomous Execution Successful!**\n\nI have successfully executed the payment using the **Crypto.com Agent SDK** (Facilitator Client).\n\n- **Hash**: \`${result.txHash}\` \n- **Amount**: ${amount} CRO\n- **Recipient**: \`${recipient}\`\n\nTransaction settled on-chain via X402 Protocol.`;
+                    } catch (error: any) {
+                        return `I tried to execute the transaction autonomously but failed: ${error.message}`;
+                    }
+                }
+
+                // Default: Return a structured proposal for user to sign in UI (Safe Mode)
                 try {
                     const x402Handler = new X402Handler();
                     const quote = await x402Handler.processPayment({
@@ -226,12 +249,10 @@ Respond conversationally. If a user asks for blockchain data but doesn't provide
                     return JSON.stringify({
                         type: "transaction_proposal",
                         data: {
-                            // In a full X402 implementation, we would send to the facilitator contract
-                            // For this hackathon/demo version, we might send directly or to the facilitator
-                            to: recipient, // Sending directly for now to ensure user works with standard wallet
+                            to: recipient,
                             amount: amount,
                             token: "CRO",
-                            protocol: "x402", // Mark as X402 protocol transaction
+                            protocol: "x402",
                             quoteId: quote.quoteId
                         },
                         message: `I've prepared an **X402 Protocol** payment of **${amount} CRO** to \`${recipient}\`.\nQuote ID: \`${quote.quoteId}\`\nPlease review and sign below.`

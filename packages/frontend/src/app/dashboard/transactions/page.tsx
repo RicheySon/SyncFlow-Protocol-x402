@@ -26,6 +26,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '../../../components/ui/select';
+import { ConfigurationStatus } from '../../../components/ConfigurationStatus';
+import { ProtectedFeature } from '../../../components/ProtectedFeature';
 
 export default function TransactionsPage() {
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -101,6 +103,9 @@ export default function TransactionsPage() {
 
     return (
         <div className="space-y-6">
+            {/* Configuration Status */}
+            <ConfigurationStatus />
+
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
@@ -118,7 +123,8 @@ export default function TransactionsPage() {
                 </div>
             </div>
 
-            <Card className="border-border bg-card">
+            <ProtectedFeature feature="transactionHistoryEnabled">
+                <Card className="border-border bg-card">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle>History</CardTitle>
@@ -228,7 +234,8 @@ export default function TransactionsPage() {
                         </table>
                     </div>
                 </CardContent>
-            </Card>
+                </Card>
+            </ProtectedFeature>
         </div>
     );
 }

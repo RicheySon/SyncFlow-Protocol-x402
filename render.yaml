@@ -1,0 +1,48 @@
+services:
+  # Backend Express Server
+  - type: web
+    name: syncflow-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && cd packages/backend && npm run build
+    startCommand: cd packages/backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://your-app.vercel.app
+      - key: CRONOS_RPC_URL
+        value: https://evm-t3.cronos.org
+      - key: CRONOS_CHAIN_ID
+        value: 338
+      - key: CDC_DASHBOARD_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: X402_NETWORK
+        value: cronos-testnet
+      - key: X402_RECEIVER_ADDRESS
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+# Database (PostgreSQL)
+databases:
+  - name: syncflow-db
+    databaseName: syncflow
+    user: syncflow
+    plan: free
+    region: oregon

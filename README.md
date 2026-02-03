@@ -76,6 +76,8 @@ npm run dev:frontend
 - [Installation Guide](./docs/INSTALLATION.md)
 - [Architecture Overview](./docs/ARCHITECTURE.md)
 - [SDK Guide](./docs/SDK_GUIDE.md)
+- **[Update Existing Deployment](./DEPLOYMENT_UPDATE.md)** - Update your Vercel deployment
+- [Full Deployment Guide](./DEPLOYMENT.md) - Complete production setup
 
 ### Hackathon Tracks
 

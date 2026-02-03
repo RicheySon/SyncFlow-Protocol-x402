@@ -45,6 +45,8 @@ import { Label } from '../../../components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { agentsApi, type Agent } from '../../../lib/api/agents';
+import { ConfigurationStatus } from '../../../components/ConfigurationStatus';
+import { ProtectedFeature } from '../../../components/ProtectedFeature';
 
 export default function AgentsPage() {
     const [search, setSearch] = useState('');
@@ -122,6 +124,9 @@ export default function AgentsPage() {
 
     return (
         <div className="space-y-6">
+            {/* Configuration Status */}
+            <ConfigurationStatus />
+
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Agents</h1>
@@ -234,17 +239,18 @@ export default function AgentsPage() {
             </div>
 
             {/* Agents Grid */}
-            {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">Loading agents...</p>
-                </div>
-            ) : error ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className="text-destructive mb-4">{error}</p>
-                    <Button onClick={fetchAgents}>Retry</Button>
-                </div>
-            ) : (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <ProtectedFeature feature="agentExecutionEnabled">
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <p className="text-muted-foreground">Loading agents...</p>
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <p className="text-destructive mb-4">{error}</p>
+                        <Button onClick={fetchAgents}>Retry</Button>
+                    </div>
+                ) : (
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {filteredAgents.map((agent) => (
                         <Card key={agent.id} className="overflow-hidden transition-all hover:border-primary/50">
                             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -345,7 +351,8 @@ export default function AgentsPage() {
                         </div>
                     </Card>
                 </div>
-            )}
+                )}
+            </ProtectedFeature>
         </div>
     );
 }

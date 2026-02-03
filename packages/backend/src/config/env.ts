@@ -10,6 +10,7 @@ const envSchema = z.object({
     PORT: z.string().default('3001'),
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
     JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
+    FRONTEND_URL: z.string().optional(),
     CRONOS_RPC_URL: z.string().url().default('https://evm-t3.cronos.org'),
     CRONOS_CHAIN_ID: z.string().default('338'),
     CDC_DASHBOARD_API_KEY: z.string().optional(),
@@ -19,6 +20,7 @@ const envSchema = z.object({
     OLLAMA_API_URL: z.string().optional(),
     OLLAMA_MODEL: z.string().default('llama2'),
     CDC_PROVIDER_URL: z.string().optional(),
+    PRIVATE_KEY: z.string().optional(),
 });
 
 

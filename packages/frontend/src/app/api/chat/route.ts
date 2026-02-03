@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CdcAgentService } from '../../../lib/backend/cdc-agent.service';
 import { prisma } from '@/lib/prisma';
 import { getUserIdFromRequest } from '@/lib/auth-utils';
 
-const agentService = new CdcAgentService();
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
 export async function POST(req: NextRequest) {
     try {
@@ -28,8 +27,21 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // 3. Get Agent Response
-        const response = await agentService.processMessage(message, context, userId);
+        // 3. Call Backend Express Server (with full AI support)
+        const backendResponse = await fetch(`${BACKEND_URL}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message, context, userId })
+        });
+
+        if (!backendResponse.ok) {
+            throw new Error(`Backend returned ${backendResponse.status}`);
+        }
+
+        const data = await backendResponse.json();
+        const response = data.response || data.message || '';
 
         // 4. Save Agent Response
         await prisma.chatMessage.create({

@@ -19,7 +19,21 @@ const app = express();
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+
+// CORS Configuration
+const corsOptions = {
+    origin: env.NODE_ENV === 'production'
+        ? [
+            process.env.FRONTEND_URL || 'https://your-app.vercel.app',
+            /\.vercel\.app$/, // Allow all Vercel preview deployments
+          ]
+        : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(logger);
 app.use(rateLimiter);
