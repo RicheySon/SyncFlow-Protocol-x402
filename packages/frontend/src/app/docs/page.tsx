@@ -23,37 +23,37 @@ const categories = [
         title: 'Getting Started',
         icon: Book,
         items: [
-            { title: 'Introduction', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402#readme' },
-            { title: 'Quick Start', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/INSTALLATION.md' },
-            { title: 'Architecture Overview', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/ARCHITECTURE.md' },
+            { title: 'Introduction', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/Backend/README.md', external: true },
+            { title: 'Quick Start', href: '/docs/installation' },
+            { title: 'Architecture Overview', href: '/docs/architecture' },
         ]
     },
     {
         title: 'Core Concepts',
         icon: Layers,
         items: [
-            { title: 'Autonomous Agents', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/tracks/MAIN_TRACK.md' },
-            { title: 'x402 Payment Protocol', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/tracks/AGENTIC_FINANCE.md' },
-            { title: 'MCP Servers', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/tracks/DEV_TOOLING.md' },
-            { title: 'Smart Wallets', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/SECURITY.md' },
+            { title: 'Autonomous Agents', href: '/docs/main-track' },
+            { title: 'x402 Payment Protocol', href: '/docs/agentic-finance' },
+            { title: 'MCP Servers', href: '/docs/dev-tooling' },
+            { title: 'Smart Wallets', href: '/docs/security' },
         ]
     },
     {
         title: 'Guides & Tutorials',
         icon: Terminal,
         items: [
-            { title: 'Building a Trading Bot', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/SDK_GUIDE.md#creating-a-trading-bot' },
-            { title: 'Creating Custom Workflows', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/SDK_GUIDE.md#workflow-builder' },
-            { title: 'Integrating with Moonlander', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/tracks/ECOSYSTEM.md' },
+            { title: 'Building a Trading Bot', href: '/docs/sdk-guide' },
+            { title: 'Creating Custom Workflows', href: '/docs/sdk-guide' },
+            { title: 'Integrating with Moonlander', href: '/docs/ecosystem' },
         ]
     },
     {
         title: 'API Reference',
         icon: Code,
         items: [
-            { title: 'Agent SDK', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/SDK_GUIDE.md' },
-            { title: 'REST API', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/ARCHITECTURE.md#api-layer' },
-            { title: 'Smart Contracts', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/tree/main/contracts' },
+            { title: 'Agent SDK', href: '/docs/sdk-guide' },
+            { title: 'REST API', href: '/docs/architecture' },
+            { title: 'Smart Contracts', href: 'https://github.com/RicheySon/SyncFlow-Protocol-x402/tree/Backend/contracts', external: true },
         ]
     }
 ];
@@ -107,7 +107,12 @@ export default function DocumentationPage() {
                                 <ul className="space-y-2 text-sm text-muted-foreground">
                                     {category.items.map((item) => (
                                         <li key={item.title}>
-                                            <Link href={item.href} target="_blank" className="hover:text-primary transition-colors">
+                                            <Link
+                                                href={item.href}
+                                                target={'external' in item && item.external ? '_blank' : undefined}
+                                                rel={'external' in item && item.external ? 'noopener noreferrer' : undefined}
+                                                className="hover:text-primary transition-colors"
+                                            >
                                                 {item.title}
                                             </Link>
                                         </li>
@@ -126,7 +131,7 @@ export default function DocumentationPage() {
                 <div className="lg:col-span-3 space-y-10">
                     {/* Quick Links */}
                     <section className="grid sm:grid-cols-2 gap-4">
-                        <Link href="https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/INSTALLATION.md" target="_blank">
+                        <Link href="/docs/installation">
                             <Card className="hover:border-primary/50 transition-colors cursor-pointer group h-full">
                                 <CardHeader>
                                     <CardTitle className="group-hover:text-primary transition-colors">Quick Start Guide</CardTitle>
@@ -139,7 +144,7 @@ export default function DocumentationPage() {
                                 </CardContent>
                             </Card>
                         </Link>
-                        <Link href="https://github.com/RicheySon/SyncFlow-Protocol-x402/blob/main/docs/SDK_GUIDE.md" target="_blank">
+                        <Link href="/docs/sdk-guide">
                             <Card className="hover:border-primary/50 transition-colors cursor-pointer group h-full">
                                 <CardHeader>
                                     <CardTitle className="group-hover:text-primary transition-colors">SDK Reference</CardTitle>
